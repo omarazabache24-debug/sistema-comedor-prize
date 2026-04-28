@@ -1,10 +1,20 @@
-INSTRUCCIONES RENDER
+# Sistema Comedor PRIZE - Render
 
-1. Subir este proyecto a GitHub
-2. Ir a Render.com
-3. Crear Web Service
-4. Configurar:
-   Build Command: pip install -r requisitos.txt
-   Start Command: gunicorn aplicación:app
+ARCHIVOS CORREGIDOS PARA RENDER:
 
-Listo.
+- app.py
+- requirements.txt
+- Procfile
+- runtime.txt
+
+CONFIGURACION EN RENDER:
+
+Build Command:
+pip install -r requirements.txt
+
+Start Command:
+gunicorn app:app
+
+IMPORTANTE:
+No usar nombres con tilde como aplicación.py para Render.
+No usar requisitos.txt como Build Command si Render está buscando requirements.txt.
