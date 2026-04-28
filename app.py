@@ -30,6 +30,7 @@ from flask import (
     render_template_string, flash
 )
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 # =========================
@@ -50,7 +51,16 @@ os.makedirs(CONCESIONARIA_DIR, exist_ok=True)
 os.makedirs(ENTREGAS_DIR, exist_ok=True)
 
 app = Flask(__name__, static_folder="static")
-app.secret_key = os.getenv("SECRET_KEY", "prize-comedor-pro-2026")
+
+# Configuracion estable para Render / HTTPS / sesiones
+app.secret_key = os.getenv("SECRET_KEY", "prize-comedor-pro-2026-cambiar-en-render")
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE=os.getenv("SESSION_COOKIE_SAMESITE", "Lax"),
+    SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "1") == "1",
+    PERMANENT_SESSION_LIFETIME=60 * 60 * 12,
+)
 
 
 # =========================
@@ -353,7 +363,8 @@ def login_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         if not session.get("user"):
-            return redirect(url_for("login"))
+            session.clear()
+            return redirect(url_for("login", next=request.path))
         return fn(*args, **kwargs)
     return wrapper
 
@@ -365,13 +376,15 @@ def roles_required(*roles):
             role = session.get("role")
             if is_super_admin():
                 return fn(*args, **kwargs)
-            if role in roles and "admin" not in roles:
+            # CORRECCION PRINCIPAL: si el rol esta permitido, entra.
+            # Antes generaba loop: /consumos -> / -> /consumos.
+            if role in roles:
                 return fn(*args, **kwargs)
-            flash("No tienes permiso para esta opción.", "error")
-            return redirect(url_for("dashboard"))
+            flash("No tienes permiso para esta opcion.", "error")
+            destino = "consumos" if role in ("comedor", "rrhh") else "login"
+            return redirect(url_for(destino))
         return wrapper
     return deco
-
 
 def send_report_email(to_email, subject, body, attachment_path):
     host = os.getenv("SMTP_HOST", "").strip()
@@ -1354,14 +1367,23 @@ def reporte_entrega():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    if request.method == "GET" and session.get("user"):
+        return redirect(url_for("dashboard" if is_super_admin() else "consumos"))
+
     if request.method == "POST":
         username = clean_text(request.form.get("username"))
         password = request.form.get("password", "")
         user = q_one("SELECT * FROM usuarios WHERE username=? AND active=1", (username,))
         if user and check_password_hash(user["password_hash"], password):
+            session.clear()
+            session.permanent = True
             session["user"] = user["username"]
             session["role"] = user["role"]
-            return redirect(url_for("dashboard" if is_super_admin() else "consumos"))
+            destino = request.args.get("next") or url_for("dashboard" if user["username"] in ("admin1", "admin2") and user["role"] == "admin" else "consumos")
+            if not str(destino).startswith("/") or str(destino).startswith("//"):
+                destino = url_for("consumos")
+            return redirect(destino)
+        session.clear()
         flash("Usuario o clave incorrecta.", "error")
 
     html = """
