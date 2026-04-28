@@ -19,7 +19,7 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 os.makedirs(REPORT_DIR, exist_ok=True)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-app = Flask(__name__, static_folder="static")
+app = Flask(__name__, static_folder=os.path.join(BASE_DIR, "static"))
 app.secret_key = os.getenv("SECRET_KEY", "prize-superfruits-render-dev")
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 if DATABASE_URL.startswith("postgres://"):
