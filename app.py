@@ -1202,13 +1202,15 @@ body{height:100vh;overflow:hidden!important;background:#eef4f8!important}
 /* Usuarios PRO */
 .users-card{padding-bottom:18px}
 .user-search{max-width:420px;min-width:240px;margin-left:auto}
-.users-scroll{max-height:430px;overflow:auto;border:1px solid var(--line);border-radius:14px;background:#fff}
-.users-scroll table{min-width:860px}
+.users-scroll{max-height:70vh;overflow:auto;border:1px solid var(--line);border-radius:14px;background:#fff;display:block}
+.users-scroll table{min-width:980px;width:100%}
+.users-count{font-weight:900;color:#0f172a;background:#e8f3ff;border-radius:999px;padding:10px 14px}
+.worker-name-field{grid-column:span 2;font-weight:900!important;background:#eef9f1!important;font-size:15px!important;min-width:360px}
 .users-scroll th{position:sticky;top:0;z-index:2;background:#f7f9fc}
 .pass-cell{display:flex;align-items:center;gap:8px;max-width:280px}
 .pass-view{height:38px;padding:8px 10px;border-radius:10px;background:#f8fafc;font-weight:800;min-width:160px}
 .eye-btn{padding:8px 10px;border-radius:10px;background:#0d73b8;box-shadow:none}
-@media(max-width:760px){.user-search{width:100%;max-width:none;margin-left:0}.users-scroll{max-height:60vh}.pass-cell{min-width:210px}.users-scroll table{min-width:780px}}
+@media(max-width:760px){.user-search{width:100%;max-width:none;margin-left:0}.users-scroll{max-height:65vh}.pass-cell{min-width:210px}.users-scroll table{min-width:850px}.worker-name-field{grid-column:1/-1!important;min-width:100%}}
 </style>
 </head>
 <body>
@@ -1659,7 +1661,7 @@ def consumos():
       <form method="post" class="form-grid">
         <input type="date" name="fecha" value="{fecha}" {disabled}>
         <input id="dni_consumo" name="dni" placeholder="Digite DNI o escanee QR" required autofocus inputmode="numeric" oninput="buscarTrabajadorConsumo()" {disabled}>
-        <input id="nombre_trabajador" placeholder="Nombre del trabajador" readonly style="font-weight:900;background:#eef9f1" {disabled}>
+        <input id="nombre_trabajador" class="worker-name-field" placeholder="Nombre completo del trabajador" readonly title="Nombre completo del trabajador" {disabled}>
         <select name="comedor" {disabled}>
           {''.join([f'<option>{c}</option>' for c in opciones_comedor()])}
         </select>
@@ -1690,6 +1692,7 @@ def consumos():
         const r = await fetch('/api/trabajador/' + encodeURIComponent(dni));
         const d = await r.json();
         out.value = d.ok ? d.nombre : 'DNI no encontrado';
+        out.title = d.ok ? d.nombre : '';
       }}catch(e){{ out.value='No se pudo validar DNI'; }}
     }}
     </script>
@@ -2335,10 +2338,12 @@ def usuarios_admin():
             flash("Usuario creado y guardado correctamente.", "ok")
         return redirect(url_for("usuarios_admin"))
 
-    usuarios = q_all("SELECT id, username, role, active, COALESCE(password_plain,'') AS password_plain FROM usuarios ORDER BY username")
+    usuarios = q_all("SELECT id, username, role, active, COALESCE(password_plain,'') AS password_plain FROM usuarios ORDER BY id ASC")
+    total_usuarios = len(usuarios)
     tabla = "".join([
         f"""
-        <tr data-user-row data-user="{u['username'].lower()}" data-role="{u['role'].lower()}">
+        <tr data-user-row data-user="{(u['username'] or '').lower()}" data-role="{(u['role'] or '').lower()}">
+          <td>{i}</td>
           <td><b>{u['username']}</b></td>
           <td>{'Administrador total' if u['role']=='admin' else 'Usuario operativo'}</td>
           <td>
@@ -2355,7 +2360,7 @@ def usuarios_admin():
           </td>
         </tr>
         """
-        for u in usuarios
+        for i, u in enumerate(usuarios, 1)
     ])
     html = topbar("Crear usuarios y claves", "Solo administrador") + f"""
     <div class="card">
@@ -2375,11 +2380,12 @@ def usuarios_admin():
     <div class="card users-card">
       <div class="table-head" style="gap:14px;align-items:center;flex-wrap:wrap">
         <h3 style="margin:0">Usuarios registrados</h3>
+        <span class="users-count">Total: {total_usuarios} usuario(s)</span>
         <input id="buscarUsuario" class="user-search" placeholder="🔎 Buscar usuario dinámicamente..." oninput="filtrarUsuarios()">
       </div>
       <div class="table-wrap users-scroll">
         <table id="tablaUsuarios">
-          <tr><th>Usuario</th><th>Nivel</th><th>Contraseña</th><th>Estado</th><th>Acción</th></tr>{tabla}
+          <tr><th>#</th><th>Usuario</th><th>Nivel</th><th>Contraseña</th><th>Estado</th><th>Acción</th></tr>{tabla}
         </table>
       </div>
       <p class="muted small">El usuario <b>adm</b> tiene clave <b>@123</b>. Los usuarios adm, adm1 y adm2 quedan como administradores totales.</p>
@@ -2387,10 +2393,15 @@ def usuarios_admin():
     <script>
       function filtrarUsuarios(){{
         const q = (document.getElementById('buscarUsuario').value || '').toLowerCase().trim();
+        let visibles = 0;
         document.querySelectorAll('[data-user-row]').forEach(tr => {{
           const texto = (tr.dataset.user + ' ' + tr.dataset.role + ' ' + tr.innerText.toLowerCase());
-          tr.style.display = texto.includes(q) ? '' : 'none';
+          const show = texto.includes(q);
+          tr.style.display = show ? '' : 'none';
+          if(show) visibles++;
         }});
+        const badge = document.querySelector('.users-count');
+        if(badge) badge.textContent = 'Total visible: ' + visibles + ' usuario(s)';
       }}
       function togglePass(btn){{
         const inp = btn.parentElement.querySelector('.pass-view');
