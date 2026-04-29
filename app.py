@@ -97,6 +97,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
+            password_plain TEXT DEFAULT '',
             role TEXT NOT NULL DEFAULT 'comedor',
             active INTEGER NOT NULL DEFAULT 1
         );
@@ -173,6 +174,12 @@ def init_db():
         """)
 
 
+        # Migración usuarios: conserva clave visible solo para administración interna.
+        user_cols = [x["name"] for x in conn.execute("PRAGMA table_info(usuarios)").fetchall()]
+        if "password_plain" not in user_cols:
+            conn.execute("ALTER TABLE usuarios ADD COLUMN password_plain TEXT DEFAULT ''")
+
+
         # Migraciones consumo pro
         cols = [x["name"] for x in conn.execute("PRAGMA table_info(consumos)").fetchall()]
         for col, sqltype, default in [
@@ -210,6 +217,7 @@ def init_db():
             pass
 
         for username, password, role in [
+            ("adm", "@123", "admin"),
             ("adm1", "adm1", "admin"),
             ("adm2", "adm2", "admin"),
             ("admin", "admin123", "admin"),
@@ -218,8 +226,14 @@ def init_db():
             existe = conn.execute("SELECT id FROM usuarios WHERE username=?", (username,)).fetchone()
             if not existe:
                 conn.execute(
-                    "INSERT INTO usuarios(username,password_hash,role,active) VALUES(?,?,?,1)",
-                    (username, generate_password_hash(password), role),
+                    "INSERT INTO usuarios(username,password_hash,password_plain,role,active) VALUES(?,?,?,?,1)",
+                    (username, generate_password_hash(password), password, role),
+                )
+            elif username in ("adm", "adm1", "adm2"):
+                # Garantiza que los usuarios administradores principales siempre tengan control total.
+                conn.execute(
+                    "UPDATE usuarios SET role='admin', active=1, password_hash=?, password_plain=? WHERE username=?",
+                    (generate_password_hash(password), password, username),
                 )
 
         # Datos demo para que la interfaz no salga vacía
@@ -1184,6 +1198,17 @@ body{height:100vh;overflow:hidden!important;background:#eef4f8!important}
   th,td{padding:10px 9px!important;}
   .topbar,.hero{position:relative!important;}
 }
+
+/* Usuarios PRO */
+.users-card{padding-bottom:18px}
+.user-search{max-width:420px;min-width:240px;margin-left:auto}
+.users-scroll{max-height:430px;overflow:auto;border:1px solid var(--line);border-radius:14px;background:#fff}
+.users-scroll table{min-width:860px}
+.users-scroll th{position:sticky;top:0;z-index:2;background:#f7f9fc}
+.pass-cell{display:flex;align-items:center;gap:8px;max-width:280px}
+.pass-view{height:38px;padding:8px 10px;border-radius:10px;background:#f8fafc;font-weight:800;min-width:160px}
+.eye-btn{padding:8px 10px;border-radius:10px;background:#0d73b8;box-shadow:none}
+@media(max-width:760px){.user-search{width:100%;max-width:none;margin-left:0}.users-scroll{max-height:60vh}.pass-cell{min-width:210px}.users-scroll table{min-width:780px}}
 </style>
 </head>
 <body>
@@ -2216,7 +2241,7 @@ def configuracion():
         flash("Configuración actualizada.", "ok")
         return redirect(url_for("configuracion"))
 
-    usuarios = q_all("SELECT id, username, role, active FROM usuarios ORDER BY username")
+    usuarios = q_all("SELECT id, username, role, active, COALESCE(password_plain,'') AS password_plain FROM usuarios ORDER BY username")
     usuarios_html = "".join([
         f"<tr><td>{u['username']}</td><td>{u['role']}</td><td><span class='badge {'ok' if u['active'] else 'off'}'>{'Activo' if u['active'] else 'Bloqueado'}</span></td></tr>"
         for u in usuarios
@@ -2259,29 +2284,35 @@ def usuarios_admin():
 
         existe = q_one("SELECT id FROM usuarios WHERE username=?", (username,))
         if existe:
-            q_exec("UPDATE usuarios SET password_hash=?, role=?, active=? WHERE username=?",
-                   (generate_password_hash(password), role, active, username))
+            q_exec("UPDATE usuarios SET password_hash=?, password_plain=?, role=?, active=? WHERE username=?",
+                   (generate_password_hash(password), password, role, active, username))
             send_admin_user_notice(username, role, "actualizado")
             audit_event("USUARIO_ACTUALIZADO", "usuarios", username, f"Rol: {role}")
             flash("Usuario actualizado y guardado correctamente.", "ok")
         else:
-            q_exec("INSERT INTO usuarios(username,password_hash,role,active) VALUES(?,?,?,?)",
-                   (username, generate_password_hash(password), role, active))
+            q_exec("INSERT INTO usuarios(username,password_hash,password_plain,role,active) VALUES(?,?,?,?,?)",
+                   (username, generate_password_hash(password), password, role, active))
             send_admin_user_notice(username, role, "creado")
             audit_event("USUARIO_CREADO", "usuarios", username, f"Rol: {role}")
             flash("Usuario creado y guardado correctamente.", "ok")
         return redirect(url_for("usuarios_admin"))
 
-    usuarios = q_all("SELECT id, username, role, active FROM usuarios ORDER BY username")
+    usuarios = q_all("SELECT id, username, role, active, COALESCE(password_plain,'') AS password_plain FROM usuarios ORDER BY username")
     tabla = "".join([
         f"""
-        <tr>
+        <tr data-user-row data-user="{u['username'].lower()}" data-role="{u['role'].lower()}">
           <td><b>{u['username']}</b></td>
           <td>{'Administrador total' if u['role']=='admin' else 'Usuario operativo'}</td>
+          <td>
+            <div class="pass-cell">
+              <input class="pass-view" type="password" value="{u['password_plain'] or 'No registrada'}" readonly>
+              <button type="button" class="eye-btn" onclick="togglePass(this)" title="Ver / ocultar contraseña">👁️</button>
+            </div>
+          </td>
           <td><span class='badge {'ok' if u['active'] else 'off'}'>{'Activo' if u['active'] else 'Bloqueado'}</span></td>
           <td>
             <form method='post' action='{url_for('eliminar_usuario', username=u['username'])}' onsubmit="return confirm('¿Eliminar este usuario?');" style='display:inline'>
-              <button class='btn-orange' style='padding:8px 12px' {'disabled' if u['username']==session.get('user') else ''}>Eliminar</button>
+              <button class='btn-orange' style='padding:8px 12px' {'disabled' if u['username'] in ['adm','adm1','adm2'] or u['username']==session.get('user') else ''}>Eliminar</button>
             </form>
           </td>
         </tr>
@@ -2303,10 +2334,32 @@ def usuarios_admin():
       </form>
     </div>
     <br>
-    <div class="card">
-      <h3 style="margin-top:0">Usuarios registrados</h3>
-      <div class="table-wrap"><table><tr><th>Usuario</th><th>Nivel</th><th>Estado</th><th>Acción</th></tr>{tabla}</table></div>
+    <div class="card users-card">
+      <div class="table-head" style="gap:14px;align-items:center;flex-wrap:wrap">
+        <h3 style="margin:0">Usuarios registrados</h3>
+        <input id="buscarUsuario" class="user-search" placeholder="🔎 Buscar usuario dinámicamente..." oninput="filtrarUsuarios()">
+      </div>
+      <div class="table-wrap users-scroll">
+        <table id="tablaUsuarios">
+          <tr><th>Usuario</th><th>Nivel</th><th>Contraseña</th><th>Estado</th><th>Acción</th></tr>{tabla}
+        </table>
+      </div>
+      <p class="muted small">El usuario <b>adm</b> tiene clave <b>@123</b>. Los usuarios adm, adm1 y adm2 quedan como administradores totales.</p>
     </div>
+    <script>
+      function filtrarUsuarios(){{
+        const q = (document.getElementById('buscarUsuario').value || '').toLowerCase().trim();
+        document.querySelectorAll('[data-user-row]').forEach(tr => {{
+          const texto = (tr.dataset.user + ' ' + tr.dataset.role + ' ' + tr.innerText.toLowerCase());
+          tr.style.display = texto.includes(q) ? '' : 'none';
+        }});
+      }}
+      function togglePass(btn){{
+        const inp = btn.parentElement.querySelector('.pass-view');
+        inp.type = inp.type === 'password' ? 'text' : 'password';
+        btn.textContent = inp.type === 'password' ? '👁️' : '🙈';
+      }}
+    </script>
     """
     return render_page(html, "config")
 
@@ -2316,6 +2369,10 @@ def usuarios_admin():
 @roles_required("admin")
 def eliminar_usuario(username):
     username = clean_text(username)
+    if username in ("adm", "adm1", "adm2"):
+        flash("No se puede eliminar adm, adm1 ni adm2 porque son administradores principales.", "error")
+        return redirect(url_for("usuarios_admin"))
+
     if username == session.get("user"):
         flash("No puedes eliminar el usuario con el que estás conectado.", "error")
         return redirect(url_for("usuarios_admin"))
