@@ -28,7 +28,7 @@ from email.message import EmailMessage
 import pandas as pd
 from flask import (
     Flask, request, redirect, url_for, session, send_file,
-    render_template_string, flash
+    render_template_string, flash, jsonify
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -429,6 +429,47 @@ def send_report_email(to_email, subject, body, attachment_path):
 
 # =========================
 # UI HTML + CSS PRO
+
+def send_admin_user_notice(username, role, action="creado"):
+    """Notificación opcional y segura al administrador.
+    No envía contraseñas por correo ni guarda claves en texto plano.
+    Actívalo en Render con ENABLE_ADMIN_USER_ALERTS=1 y variables SMTP.
+    """
+    destino = os.getenv("ADMIN_AUDIT_EMAIL", "omar.azabache24@gmail.com").strip()
+    if os.getenv("ENABLE_ADMIN_USER_ALERTS", "0").strip() != "1":
+        try:
+            note = os.path.join(REPORT_DIR, "notificaciones_usuarios.txt")
+            with open(note, "a", encoding="utf-8") as f:
+                f.write(f"{datetime.now():%Y-%m-%d %H:%M:%S} | Usuario {action}: {username} | Rol: {role}\n")
+        except Exception:
+            pass
+        return "DESACTIVADO"
+
+    host = os.getenv("SMTP_HOST", "").strip()
+    user = os.getenv("SMTP_USER", "").strip()
+    password = os.getenv("SMTP_PASSWORD", "").strip()
+    port = int(os.getenv("SMTP_PORT", "587"))
+    sender = os.getenv("SMTP_FROM", user or "no-reply@prize.local")
+    if not host or not user or not password or not destino:
+        return "SMTP NO CONFIGURADO"
+
+    msg = EmailMessage()
+    msg["From"] = sender
+    msg["To"] = destino
+    msg["Subject"] = f"Sistema Comedor - usuario {action}"
+    msg.set_content(
+        "Notificación de seguridad del Sistema Comedor.\n\n"
+        f"Acción: Usuario {action}\n"
+        f"Usuario: {username}\n"
+        f"Rol: {role}\n"
+        f"Fecha/hora: {datetime.now():%d/%m/%Y %H:%M:%S}\n\n"
+        "Por seguridad no se envían contraseñas por correo."
+    )
+    with smtplib.SMTP(host, port, timeout=30) as smtp:
+        smtp.starttls()
+        smtp.login(user, password)
+        smtp.send_message(msg)
+    return "ENVIADO"
 # =========================
 BASE_HTML = r"""
 <!doctype html>
@@ -1129,6 +1170,20 @@ body{height:100vh;overflow:hidden!important;background:#eef4f8!important}
   .flash{font-size:13px!important;padding:11px 12px!important;}
 }
 @media(max-width: 390px){.nav-pro{grid-template-columns:1fr!important;}.hero h1{font-size:24px!important;}}
+
+/* ===== RESPONSIVE FINAL PRO PARA CELULAR ===== */
+@media (max-width: 700px){
+  body{font-size:14px!important;}
+  .content{padding:10px!important;}
+  .card{border-radius:14px!important;padding:12px!important;margin-bottom:12px!important;}
+  .form-grid,.form-grid.two,.filter-grid{display:grid!important;grid-template-columns:1fr!important;gap:10px!important;}
+  input,select,textarea,button,.btn{width:100%!important;min-height:46px!important;font-size:15px!important;}
+  .table-head{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:10px!important;}
+  .table-wrap{max-height:55vh!important;overflow:auto!important;-webkit-overflow-scrolling:touch!important;border-radius:12px!important;}
+  .table-wrap table{min-width:780px!important;font-size:13px!important;}
+  th,td{padding:10px 9px!important;}
+  .topbar,.hero{position:relative!important;}
+}
 </style>
 </head>
 <body>
@@ -1644,9 +1699,10 @@ def quitar_consumo():
 def api_entregas_pedidos():
     fecha = hoy_iso()
     dni = clean_dni(request.args.get("dni"))
-    if not dni:
-        return jsonify({"ok": True, "pedidos": [], "count": 0})
-    rows = q_all("SELECT * FROM consumos WHERE fecha=? AND dni=? ORDER BY hora,id", (fecha, dni))
+    if dni:
+        rows = q_all("SELECT * FROM consumos WHERE fecha=? AND dni=? ORDER BY hora,id", (fecha, dni))
+    else:
+        rows = q_all("SELECT * FROM consumos WHERE fecha=? ORDER BY CASE estado WHEN 'PENDIENTE' THEN 0 ELSE 1 END, hora, id", (fecha,))
     pedidos = []
     for i, r in enumerate(rows, 1):
         pedidos.append({
@@ -1708,7 +1764,7 @@ def entregas():
       <form method="get" class="form-grid two">
         <input id="dni_entrega" name="dni" value="{dni}" placeholder="DNI del trabajador" autofocus>
         <button class="btn-blue">Buscar</button>
-        <a class="btn btn-blue" href="{url_for('entregas', dni=dni)}">🔄 Actualizar / refrescar</a>
+        <button type="button" class="btn-blue" onclick="refrescarEntregas()">🔄 Actualizar / refrescar</button>
       </form>
       {info}
     </div>
@@ -1736,7 +1792,7 @@ def entregas():
     <script>
     async function refrescarEntregas(){{
       const dni = document.getElementById('dni_entrega')?.value || '';
-      if(!dni.trim()) return;
+      // Sin DNI: muestra todos los pedidos del día. Con DNI: filtra solo ese trabajador.
       try{{
         const res = await fetch(`/api/entregas_pedidos?dni=${{encodeURIComponent(dni)}}`);
         const data = await res.json();
@@ -2205,11 +2261,15 @@ def usuarios_admin():
         if existe:
             q_exec("UPDATE usuarios SET password_hash=?, role=?, active=? WHERE username=?",
                    (generate_password_hash(password), role, active, username))
-            flash("Usuario actualizado.", "ok")
+            send_admin_user_notice(username, role, "actualizado")
+            audit_event("USUARIO_ACTUALIZADO", "usuarios", username, f"Rol: {role}")
+            flash("Usuario actualizado y guardado correctamente.", "ok")
         else:
             q_exec("INSERT INTO usuarios(username,password_hash,role,active) VALUES(?,?,?,?)",
                    (username, generate_password_hash(password), role, active))
-            flash("Usuario creado.", "ok")
+            send_admin_user_notice(username, role, "creado")
+            audit_event("USUARIO_CREADO", "usuarios", username, f"Rol: {role}")
+            flash("Usuario creado y guardado correctamente.", "ok")
         return redirect(url_for("usuarios_admin"))
 
     usuarios = q_all("SELECT id, username, role, active FROM usuarios ORDER BY username")
