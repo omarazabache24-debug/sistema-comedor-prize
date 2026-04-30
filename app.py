@@ -441,10 +441,27 @@ def normalize_columns(cols):
         x = str(c).strip().upper()
         for a, b in [("Á","A"),("É","E"),("Í","I"),("Ó","O"),("Ú","U"),("Ñ","N")]:
             x = x.replace(a, b)
-        x = re.sub(r"\s+", "_", x)
+        x = re.sub(r"[^A-Z0-9]+", "_", x).strip("_")
         out.append(x)
     return out
 
+def col_value(row, *names):
+    aliases = {
+        "DNI": ["DNI", "DOCUMENTO", "DOCUMENTO_IDENTIDAD", "NUMERO_DOCUMENTO", "NUMERO_DE_DOCUMENTO", "NRO_DOCUMENTO", "NRO_DNI"],
+        "NOMBRE": ["NOMBRE", "NOMBRES", "APELLIDOS_Y_NOMBRES", "APELLIDOS_NOMBRES", "APELLIDOS_Y_NOMBRE", "NOMBRE_COMPLETO", "TRABAJADOR", "COLABORADOR", "APELLIDOS"],
+        "EMPRESA": ["EMPRESA", "RAZON_SOCIAL", "COMPANIA"],
+        "CARGO": ["CARGO", "PUESTO", "OCUPACION"],
+        "AREA": ["AREA", "AREA_TRABAJO", "SEDE", "FUNDO"]
+    }
+    for name in names:
+        for key in aliases.get(name, [name]):
+            try:
+                val = row.get(key)
+            except Exception:
+                val = ""
+            if clean_text(val):
+                return val
+    return ""
 
 def dia_cerrado(fecha_iso=None):
     return q_one("SELECT * FROM cierres WHERE fecha=?", (fecha_iso or hoy_iso(),))
@@ -1617,8 +1634,13 @@ def api_trabajador(dni):
     dni = clean_dni(dni)
     t = q_one("SELECT dni,nombre,empresa,area,cargo FROM trabajadores WHERE dni=? AND activo=1", (dni,))
     if not t:
-        return jsonify({"ok": False, "msg": "DNI no encontrado"})
-    return jsonify({"ok": True, "dni": t["dni"], "nombre": t["nombre"], "empresa": t["empresa"], "area": t["area"], "cargo": t["cargo"]})
+        return jsonify({"ok": False, "success": False, "msg": "DNI no encontrado"})
+    return jsonify({"ok": True, "success": True, "dni": t["dni"], "nombre": t["nombre"], "empresa": t["empresa"], "area": t["area"], "cargo": t["cargo"]})
+
+@app.route("/api/buscar_dni/<dni>")
+@login_required
+def api_buscar_dni(dni):
+    return api_trabajador(dni)
 
 @app.route("/consumos", methods=["GET", "POST"])
 @login_required
@@ -1920,61 +1942,67 @@ def consumos():
       const btn = document.getElementById('btn_submit_consumo');
       if(btn) btn.textContent = on ? 'REGISTRO MASIVO' : 'Registrar consumo';
     }}
-    async function cargarLibreriaQR(){{
-      if(window.Html5Qrcode) return true;
-      const srcs = [
-        'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
-        'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'
-      ];
-      for(const src of srcs){{
-        try{{
-          await new Promise((resolve,reject)=>{{
-            const s=document.createElement('script'); s.src=src; s.async=true; s.onload=resolve; s.onerror=reject; document.head.appendChild(s);
-            setTimeout(()=>reject(new Error('timeout')), 6000);
-          }});
-          if(window.Html5Qrcode) return true;
-        }}catch(e){{}}
-      }}
-      return false;
-    }}
-    async function procesarDniQR(decoded){{
-      const dni = soloDni(decoded);
-      if(dni.length !== 8){{ avisoMovil('QR no contiene DNI válido', false); return; }}
-      if(document.getElementById('modo_lote')?.checked){{
-        try{{
-          const d = await validarDni(dni);
-          if(d.ok) agregarDniLote(dni, d.nombre);
-          else avisoMovil('DNI no encontrado: ' + dni, false);
-        }}catch(e){{ avisoMovil('No se pudo validar DNI', false); }}
-      }}else{{
-        const inp = document.getElementById('dni_consumo');
-        if(inp) inp.value = dni;
-        await buscarTrabajadorConsumo(true);
-        beepOk();
-      }}
-    }}
     async function abrirScannerQR(){{
       const cont = document.getElementById('qr-reader');
       if(!cont) return;
       cont.style.display='block';
-      cont.innerHTML='<div style="padding:10px;border:1px solid #dce6f0;border-radius:10px">Abriendo cámara...</div>';
-      const okLib = await cargarLibreriaQR();
-      if(!okLib){{ alert('No se cargó el lector QR. Verifica internet o usa digitación.'); cont.style.display='none'; return; }}
-      try{{
-        if(qrActivo){{ try{{ await qrActivo.stop(); }}catch(e){{}} qrActivo=null; }}
-        qrActivo = new Html5Qrcode('qr-reader');
-        const config = {{ fps: 10, qrbox: {{width: 240, height: 240}}, rememberLastUsedCamera: true }};
-        await qrActivo.start({{ facingMode: 'environment' }}, config, async decoded => {{
-          await procesarDniQR(decoded);
-          if(!document.getElementById('modo_lote')?.checked){{
-            try{{ await qrActivo.stop(); }}catch(e){{}}
-            cont.style.display='none'; qrActivo=null;
-          }}
-        }});
-      }}catch(e){{
-        cont.style.display='none';
-        alert('No se pudo abrir cámara QR. Da permiso de cámara en el navegador y verifica que estés usando HTTPS.');
+      cont.innerHTML = `
+        <div style="padding:10px;border:1px solid #dce6f0;border-radius:12px;background:#f8fbff">
+          <b>Escáner QR/DNI activo</b><br>
+          <video id="qr-video" playsinline autoplay muted style="width:100%;max-width:360px;border-radius:12px;margin-top:8px;background:#111"></video>
+          <canvas id="qr-canvas" style="display:none"></canvas>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <button type="button" class="btn-red" onclick="cerrarScannerQR()">Cerrar cámara</button>
+          </div>
+          <small class="muted">Permite la cámara. En celular usa HTTPS de Render y Chrome.</small>
+        </div>`;
+
+      if(!('BarcodeDetector' in window)){{
+        alert('Tu navegador no soporta lector QR nativo. Usa Chrome actualizado en celular/PC o digita el DNI.');
+        return;
       }}
+      try{{
+        const formatos = await BarcodeDetector.getSupportedFormats();
+        if(!formatos.includes('qr_code')){{
+          alert('Este navegador no soporta QR. Usa Chrome actualizado o digita el DNI.');
+          return;
+        }}
+        const video = document.getElementById('qr-video');
+        const stream = await navigator.mediaDevices.getUserMedia({{ video: {{ facingMode: {{ ideal: 'environment' }} }}, audio: false }});
+        video.srcObject = stream;
+        await video.play();
+        qrActivo = {{ stream: stream, stopped: false }};
+        const detector = new BarcodeDetector({{ formats: ['qr_code'] }});
+        const loop = async () => {{
+          if(!qrActivo || qrActivo.stopped) return;
+          try{{
+            const codes = await detector.detect(video);
+            if(codes && codes.length){{
+              const texto = codes[0].rawValue || '';
+              await procesarDniQR(texto);
+              if(!document.getElementById('modo_lote')?.checked){{
+                cerrarScannerQR();
+                return;
+              }}
+            }}
+          }}catch(e){{}}
+          requestAnimationFrame(loop);
+        }};
+        requestAnimationFrame(loop);
+      }}catch(e){{
+        alert('No se pudo abrir la cámara. Da permiso de cámara en el navegador y verifica HTTPS en Render.');
+      }}
+    }}
+    function cerrarScannerQR(){{
+      try{{
+        if(qrActivo && qrActivo.stream){{
+          qrActivo.stopped = true;
+          qrActivo.stream.getTracks().forEach(t => t.stop());
+        }}
+      }}catch(e){{}}
+      qrActivo = null;
+      const cont = document.getElementById('qr-reader');
+      if(cont){{ cont.style.display='none'; cont.innerHTML=''; }}
     }}
     
     function validarAntesEnviar(e){{
@@ -2200,8 +2228,12 @@ def carga_masiva():
             flash("Sube un archivo Excel válido.", "error")
             return redirect(url_for("carga_masiva"))
 
-        df = pd.read_excel(f, dtype=str).fillna("")
-        df.columns = normalize_columns(df.columns)
+        try:
+            df = pd.read_excel(f, dtype=str, engine="openpyxl" if f.filename.lower().endswith(".xlsx") else None).fillna("")
+            df.columns = normalize_columns(df.columns)
+        except Exception:
+            flash("No se pudo leer el Excel. Guarda el archivo como .xlsx y vuelve a cargarlo.", "error")
+            return redirect(url_for("carga_masiva"))
 
         if "DNI" not in df.columns:
             flash("Falta la columna DNI. Usa la plantilla.", "error")
@@ -2212,7 +2244,7 @@ def carga_masiva():
         errores = 0
 
         for _, r in df.iterrows():
-            dni = clean_dni(r.get("DNI"))
+            dni = clean_dni(col_value(r, "DNI"))
             trabajador = q_one("SELECT * FROM trabajadores WHERE dni=? AND activo=1", (dni,))
             if not trabajador:
                 errores += 1
@@ -2295,6 +2327,9 @@ def trabajadores():
         empresa = clean_text(request.form.get("empresa")) or "PRIZE"
         cargo = clean_text(request.form.get("cargo"))
         area = clean_text(request.form.get("area"))
+        if len(dni) != 8 or not nombre:
+            flash("Ingresa un DNI de 8 dígitos y nombre válido.", "error")
+            return redirect(url_for("trabajadores"))
 
         existe = q_one("SELECT id FROM trabajadores WHERE dni=?", (dni,))
         if existe:
@@ -2308,20 +2343,27 @@ def trabajadores():
 
     if request.method == "POST" and "excel" in request.files:
         f = request.files.get("excel")
-        df = pd.read_excel(f, dtype=str).fillna("")
-        df.columns = normalize_columns(df.columns)
-        if "DNI" not in df.columns or "NOMBRE" not in df.columns:
-            flash("El Excel debe tener DNI y NOMBRE.", "error")
+        try:
+            if not f or not f.filename.lower().endswith((".xlsx", ".xls")):
+                flash("Sube un archivo Excel válido (.xlsx o .xls).", "error")
+                return redirect(url_for("trabajadores"))
+            df = pd.read_excel(f, dtype=str, engine="openpyxl" if f.filename.lower().endswith(".xlsx") else None).fillna("")
+            df.columns = normalize_columns(df.columns)
+        except Exception:
+            flash("No se pudo leer el Excel. Descarga la plantilla y vuelve a importar en formato .xlsx.", "error")
             return redirect(url_for("trabajadores"))
+
         n = 0
+        omitidos = 0
         for _, r in df.iterrows():
-            dni = clean_dni(r.get("DNI"))
-            nombre = clean_text(r.get("NOMBRE"))
-            if not dni or not nombre:
+            dni = clean_dni(col_value(r, "DNI"))
+            nombre = clean_text(col_value(r, "NOMBRE"))
+            if len(dni) != 8 or not nombre:
+                omitidos += 1
                 continue
-            empresa = clean_text(r.get("EMPRESA")) or "PRIZE"
-            cargo = clean_text(r.get("CARGO"))
-            area = clean_text(r.get("AREA"))
+            empresa = clean_text(col_value(r, "EMPRESA")) or "PRIZE"
+            cargo = clean_text(col_value(r, "CARGO"))
+            area = clean_text(col_value(r, "AREA"))
             existe = q_one("SELECT id FROM trabajadores WHERE dni=?", (dni,))
             if existe:
                 q_exec("UPDATE trabajadores SET empresa=?,nombre=?,cargo=?,area=?,activo=1,actualizado=CURRENT_TIMESTAMP WHERE dni=?",
@@ -2330,7 +2372,7 @@ def trabajadores():
                 q_exec("INSERT INTO trabajadores(empresa,dni,nombre,cargo,area,activo) VALUES(?,?,?,?,?,1)",
                        (empresa, dni, nombre, cargo, area))
             n += 1
-        flash(f"Trabajadores importados/actualizados: {n}", "ok")
+        flash(f"Trabajadores importados/actualizados: {n}. Omitidos: {omitidos}", "ok")
         return redirect(url_for("trabajadores"))
 
     buscar = clean_text(request.args.get("buscar"))
