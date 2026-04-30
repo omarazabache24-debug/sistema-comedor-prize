@@ -1895,8 +1895,14 @@ def consumos():
                 d = clean_dni(part)
                 if d and d not in dnis:
                     dnis.append(d)
+            # PRO FIX: si el navegador no alcanzó a llenar el textarea oculto,
+            # usamos el DNI visible como respaldo en el clic final de REGISTRO DE CONSUMO.
             if not dnis:
-                flash("Activa registro masivo, pero no ingresaste DNI válidos en lote.", "error")
+                d_respaldo = clean_dni(request.form.get("dni"))
+                if d_respaldo and len(d_respaldo) == 8:
+                    dnis.append(d_respaldo)
+            if not dnis:
+                flash("Registro masivo activo, pero aún no hay DNIs guardados en el lote. Digita o escanea un DNI válido y espera el mensaje verde de guardado.", "error")
                 return redirect(url_for("consumos", fecha=fecha))
             creados, errores = 0, []
             for dni in dnis:
@@ -2007,7 +2013,7 @@ def consumos():
 
     <div class="card">
       <h3 style="margin-top:0">Registrar consumo</h3>
-      <form method="post" class="form-grid" id="form_consumo">
+      <form method="post" class="form-grid" id="form_consumo" onsubmit="return validarAntesEnviar(event)">
         <input type="date" name="fecha" value="{fecha}" onchange="window.location='{url_for('consumos')}?fecha=' + this.value" title="Elige una fecha para consultar. Solo hoy permite registrar." max="{hoy_iso()}">
         <input id="dni_consumo" name="dni" placeholder="Digite DNI o escanee QR/barras" required autofocus inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" enterkeyhint="next" oninput="dniInputHandler()" onkeyup="dniInputHandler()" onchange="dniInputHandler()" {disabled}>
         <input id="nombre_trabajador" class="worker-name-field" placeholder="Nombre aparecerá automáticamente al digitar DNI" readonly title="Nombre completo del trabajador" {disabled}>
@@ -2031,10 +2037,18 @@ def consumos():
         <input name="observacion" placeholder="Observación / QR DNI" {disabled}>
         <label style="font-weight:900"><input type="checkbox" id="modo_lote" name="modo_lote" value="1" onchange="toggleLote()"> Registro masivo / lote</label>
         {('<label style="font-weight:900"><input type="checkbox" name="adicional" value="1"> Consumo adicional</label>' if session.get('role')=='admin' else '')}
-        <div id="lote_panel" style="display:none;grid-column:1/-1;border:1px solid #dce6f0;border-radius:12px;padding:10px;background:#f8fbff">
-          <b>DNIs guardados para registro masivo:</b> <span id="lote_count" class="badge ok">0</span>
-          <div id="lote_lista" style="margin-top:8px;font-size:13px;color:#25364a;max-height:130px;overflow:auto"></div>
-          <p class="muted small" style="margin:8px 0 0">Digite o escanee un DNI de 8 dígitos. En modo masivo NO se registra todavía: solo se guarda en esta lista temporal hasta presionar REGISTRO DE CONSUMO.</p>
+        <div id="lote_panel" style="display:none;grid-column:1/-1;border:2px solid #17a34a;border-radius:16px;padding:14px;background:#f0fdf4;box-shadow:0 10px 24px rgba(22,163,74,.12)">
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+            <div>
+              <b style="font-size:18px;color:#14532d">📦 Espacio temporal de REGISTRO MASIVO</b><br>
+              <span class="muted small">Cada DNI válido se guarda aquí primero. Recién se graba en CONSUMOS al presionar REGISTRO DE CONSUMO.</span>
+            </div>
+            <span id="lote_count" class="badge ok" style="font-size:15px">0</span>
+          </div>
+          <div id="lote_lista" style="margin-top:10px;font-size:13px;color:#25364a;max-height:180px;overflow:auto;background:white;border:1px solid #bbf7d0;border-radius:12px;padding:10px"></div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <button type="button" class="btn-red" style="width:auto;min-height:36px;padding:8px 12px" onclick="limpiarLoteConsumos()">Limpiar lote</button>
+          </div>
         </div>
         <textarea id="dni_lote" name="dni_lote" placeholder="DNIs validados para lote" style="display:none;grid-column:1/-1;min-height:90px"></textarea>
         <button id="btn_submit_consumo" {disabled}>REGISTRO DE CONSUMO</button>
@@ -2075,7 +2089,7 @@ def consumos():
       if(count) count.textContent = limpio.length;
       if(lista){{
         lista.innerHTML = limpio.length
-          ? limpio.map((d, i) => `<span class="badge ok" style="margin:3px;display:inline-flex;gap:6px;align-items:center">${{i+1}}. ${{d}} <button type="button" onclick="quitarDniLote('${{d}}')" style="min-height:0;width:auto;padding:2px 7px;border-radius:999px;background:#ef4444;box-shadow:none">×</button></span>`).join('')
+          ? limpio.map((d, i) => `<div style="display:grid;grid-template-columns:60px 1fr 44px;gap:8px;align-items:center;padding:8px;border-bottom:1px solid #e8eef5"><b>${{i+1}}.</b><span><b>DNI:</b> ${{d}}<br><small class="muted">Guardado temporalmente, pendiente de REGISTRO DE CONSUMO</small></span><button type="button" onclick="quitarDniLote('${{d}}')" style="min-height:0;width:36px;padding:6px;border-radius:999px;background:#ef4444;box-shadow:none">×</button></div>`).join('')
           : '<span class="muted">Aún no hay DNIs guardados. Digite o escanee para acumular.</span>';
       }}
       try{{ localStorage.setItem('lote_consumos_' + new Date().toISOString().slice(0,10), limpio.join('\n')); }}catch(e){{}}
@@ -2085,6 +2099,15 @@ def consumos():
       setLoteArray(arr);
       avisoMovil('DNI quitado del lote: ' + dni, false);
       setTimeout(()=>document.getElementById('dni_consumo')?.focus(), 100);
+    }}
+    function limpiarLoteConsumos(){{
+      setLoteArray([]);
+      const inp = document.getElementById('dni_consumo');
+      const out = document.getElementById('nombre_trabajador');
+      if(inp) inp.value='';
+      if(out) out.value='';
+      avisoMovil('Lote temporal limpiado.', false);
+      setTimeout(()=>inp?.focus(), 100);
     }}
     function beepOk(){{
       try{{
@@ -2184,6 +2207,14 @@ def consumos():
       if(panel) panel.style.display = on ? 'block' : 'none';
       if(dni) dni.required = !on;
       setLoteArray(getLoteArray());
+      // Al activar el check después de digitar un DNI válido, lo pasamos al espacio temporal.
+      if(on){{
+        const actual = soloDni(dni ? dni.value : '');
+        const nombreActual = document.getElementById('nombre_trabajador')?.value || '';
+        if(actual.length === 8 && !/no encontrado|validando|error/i.test(nombreActual)){{
+          setTimeout(()=>agregarDniLote(actual, nombreActual), 60);
+        }}
+      }}
       const btn = document.getElementById('btn_submit_consumo');
       if(btn) btn.textContent = 'REGISTRO DE CONSUMO';
       if(on) avisoMovil('Registro masivo activado. Los DNI se guardarán en lote temporal hasta presionar REGISTRO DE CONSUMO.', true);
@@ -2316,7 +2347,13 @@ def consumos():
     function validarAntesEnviar(e){{
       const lote = document.getElementById('modo_lote')?.checked;
       if(lote){{
-        const arr = getLoteArray();
+        let arr = getLoteArray();
+        const actual = soloDni(document.getElementById('dni_consumo')?.value || '');
+        const nombreActual = document.getElementById('nombre_trabajador')?.value || '';
+        if(arr.length === 0 && actual.length === 8 && !/no encontrado|validando|error/i.test(nombreActual)){{
+          arr = [actual];
+          setLoteArray(arr);
+        }}
         if(arr.length === 0){{ e.preventDefault(); avisoMovil('No hay DNI válidos guardados para el registro masivo.', false); return false; }}
         document.getElementById('dni_lote').value = arr.join('\n');
         if(!confirm('Se registrarán ' + arr.length + ' consumo(s) para la fecha de hoy. ¿Confirmas REGISTRO DE CONSUMO?')){{ e.preventDefault(); return false; }}
@@ -2734,7 +2771,7 @@ def trabajadores():
     html = topbar("Trabajadores", "Base de trabajadores activos para validar DNI") + f"""
     <div class="card">
       <h3 style="margin-top:0">Registro manual</h3>
-      <form method="post" class="form-grid" id="form_consumo">
+      <form method="post" class="form-grid" id="form_consumo" onsubmit="return validarAntesEnviar(event)">
         <input type="hidden" name="manual" value="1">
         <input name="empresa" value="PRIZE" placeholder="Empresa">
         <input name="dni" placeholder="DNI" required>
@@ -2976,7 +3013,7 @@ def configuracion():
     html = topbar("Configuración", "Bloqueo por horario, clave para quitar y usuarios") + f"""
     <div class="card">
       <h3 style="margin-top:0">Bloqueo de registro por horario</h3>
-      <form method="post" class="form-grid" id="form_consumo">
+      <form method="post" class="form-grid" id="form_consumo" onsubmit="return validarAntesEnviar(event)">
         <label style="font-weight:900"><input type="checkbox" name="bloqueo_activo" {'checked' if cfg_get('bloqueo_activo','0')=='1' else ''}> Activar bloqueo para usuarios</label>
         <input type="time" name="hora_inicio" value="{cfg_get('hora_inicio','00:00')}">
         <input type="time" name="hora_fin" value="{cfg_get('hora_fin','23:59')}">
@@ -3050,7 +3087,7 @@ def usuarios_admin():
     html = topbar("Crear usuarios y claves", "Solo administrador") + f"""
     <div class="card">
       <h3 style="margin-top:0">Crear / actualizar usuario</h3>
-      <form method="post" class="form-grid" id="form_consumo">
+      <form method="post" class="form-grid" id="form_consumo" onsubmit="return validarAntesEnviar(event)">
         <input name="username" placeholder="Usuario" required>
         <input name="password" placeholder="Clave" required>
         <select name="role">
