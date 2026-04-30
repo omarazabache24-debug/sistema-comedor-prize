@@ -1776,10 +1776,11 @@ def consumos():
 
     <div class="card">
       <h3 style="margin-top:0">Registrar consumo</h3>
-      <form method="post" class="form-grid">
+      <form method="post" class="form-grid" id="form_consumo">
         <input type="date" name="fecha" value="{fecha}" onchange="window.location='{url_for('consumos')}?fecha=' + this.value" title="Elige una fecha para consultar. Solo hoy permite registrar." max="{hoy_iso()}">
-        <input id="dni_consumo" name="dni" placeholder="Digite DNI o escanee QR" required autofocus inputmode="numeric" maxlength="8" autocomplete="off" oninput="dniInputHandler()" onkeyup="dniInputHandler()" onchange="dniInputHandler()" {disabled}>
+        <input id="dni_consumo" name="dni" placeholder="Digite DNI o escanee QR" required autofocus inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" enterkeyhint="next" oninput="dniInputHandler()" onkeyup="dniInputHandler()" onchange="dniInputHandler()" {disabled}>
         <button type="button" id="btn_qr" class="btn-blue" onclick="abrirScannerQR()" {disabled}>📷 Escanear QR</button>
+        <div id="qr-reader" style="display:none;width:320px;max-width:100%;margin:10px 0;grid-column:1/-1"></div>
         <input id="nombre_trabajador" class="worker-name-field" placeholder="Nombre completo del trabajador" readonly title="Nombre completo del trabajador" {disabled}>
         <select name="comedor" {disabled}>
           {''.join([f'<option>{c}</option>' for c in opciones_comedor()])}
@@ -1803,7 +1804,7 @@ def consumos():
           <p class="muted small" style="margin:8px 0 0">Digite o escanee un DNI de 8 dígitos. Si existe en trabajadores, se guarda automáticamente en esta lista.</p>
         </div>
         <textarea id="dni_lote" name="dni_lote" placeholder="DNIs validados para lote" style="display:none;grid-column:1/-1;min-height:90px"></textarea>
-        <button {disabled}>Registrar consumo</button>
+        <button id="btn_submit_consumo" {disabled}>Registrar consumo</button>
         <a class="btn btn-blue" href="{url_for('consumos')}">Actualizar / refrescar</a>
       </form>
       <p class="muted small">Regla: no se permite duplicar DNI para el mismo día. Al digitar el DNI aparecerá automáticamente el nombre del trabajador.</p>
@@ -1869,8 +1870,9 @@ def consumos():
         if(d.ok){{
           out.value = d.nombre;
           out.title = d.nombre;
+          // MODO MASIVO: apenas el DNI llega a 8 dígitos y existe en la base, se guarda en lote.
           if(document.getElementById('modo_lote')?.checked){{
-            agregarDniLote(dni, d.nombre);
+            setTimeout(()=>agregarDniLote(dni, d.nombre), 80);
           }}
         }}else{{
           out.value = 'DNI no encontrado';
@@ -1880,8 +1882,11 @@ def consumos():
       }}catch(e){{ out.value='No se pudo validar DNI'; }}
     }}
     function dniInputHandler(){{
+      const inp = document.getElementById('dni_consumo');
+      if(inp) inp.value = soloDni(inp.value);
       clearTimeout(dniTimer);
-      dniTimer = setTimeout(()=>buscarTrabajadorConsumo(false), 120);
+      const espera = (inp && inp.value.length === 8) ? 40 : 120;
+      dniTimer = setTimeout(()=>buscarTrabajadorConsumo(false), espera);
     }}
     function agregarDniLote(dni, nombre){{
       dni = soloDni(dni);
@@ -1912,6 +1917,8 @@ def consumos():
       if(dni) dni.required = !on;
       setLoteArray(getLoteArray());
       if(on) avisoMovil('Registro masivo activado. Digite o escanee DNIs.', true);
+      const btn = document.getElementById('btn_submit_consumo');
+      if(btn) btn.textContent = on ? 'REGISTRO MASIVO' : 'Registrar consumo';
     }}
     async function cargarLibreriaQR(){{
       if(window.Html5Qrcode) return true;
@@ -1969,13 +1976,28 @@ def consumos():
         alert('No se pudo abrir cámara QR. Da permiso de cámara en el navegador y verifica que estés usando HTTPS.');
       }}
     }}
+    
+    function validarAntesEnviar(e){{
+      const lote = document.getElementById('modo_lote')?.checked;
+      if(lote){{
+        const arr = getLoteArray();
+        if(arr.length === 0){{ e.preventDefault(); avisoMovil('Activa registro masivo, pero no hay DNI válidos guardados.', false); return false; }}
+        document.getElementById('dni_lote').value = arr.join('\n');
+      }}
+      return true;
+    }}
     document.addEventListener('DOMContentLoaded', ()=>{{
       const inp = document.getElementById('dni_consumo');
-      if(inp){{ inp.addEventListener('paste', ()=>setTimeout(dniInputHandler, 50)); }}
+      if(inp){{
+        inp.addEventListener('paste', ()=>setTimeout(dniInputHandler, 50));
+        inp.addEventListener('keydown', (e)=>{{ if(e.key === 'Enter'){{ e.preventDefault(); buscarTrabajadorConsumo(true); }} }});
+      }}
+      const form = document.getElementById('form_consumo');
+      if(form) form.addEventListener('submit', validarAntesEnviar);
+      toggleLote();
       setLoteArray(getLoteArray());
     }});
     </script>
-    <div id="qr-reader" style="display:none;width:320px;max-width:100%;margin:10px 0"></div>
 
     <br>
     {filtros}
@@ -2330,7 +2352,7 @@ def trabajadores():
     html = topbar("Trabajadores", "Base de trabajadores activos para validar DNI") + f"""
     <div class="card">
       <h3 style="margin-top:0">Registro manual</h3>
-      <form method="post" class="form-grid">
+      <form method="post" class="form-grid" id="form_consumo">
         <input type="hidden" name="manual" value="1">
         <input name="empresa" value="PRIZE" placeholder="Empresa">
         <input name="dni" placeholder="DNI" required>
@@ -2571,7 +2593,7 @@ def configuracion():
     html = topbar("Configuración", "Bloqueo por horario, clave para quitar y usuarios") + f"""
     <div class="card">
       <h3 style="margin-top:0">Bloqueo de registro por horario</h3>
-      <form method="post" class="form-grid">
+      <form method="post" class="form-grid" id="form_consumo">
         <label style="font-weight:900"><input type="checkbox" name="bloqueo_activo" {'checked' if cfg_get('bloqueo_activo','0')=='1' else ''}> Activar bloqueo para usuarios</label>
         <input type="time" name="hora_inicio" value="{cfg_get('hora_inicio','00:00')}">
         <input type="time" name="hora_fin" value="{cfg_get('hora_fin','23:59')}">
@@ -2645,7 +2667,7 @@ def usuarios_admin():
     html = topbar("Crear usuarios y claves", "Solo administrador") + f"""
     <div class="card">
       <h3 style="margin-top:0">Crear / actualizar usuario</h3>
-      <form method="post" class="form-grid">
+      <form method="post" class="form-grid" id="form_consumo">
         <input name="username" placeholder="Usuario" required>
         <input name="password" placeholder="Clave" required>
         <select name="role">
