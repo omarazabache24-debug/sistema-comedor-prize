@@ -1331,7 +1331,8 @@ body{height:100vh;overflow:hidden!important;background:#eef4f8!important}
 .eye-btn{padding:8px 10px;border-radius:10px;background:#0d73b8;box-shadow:none}
 @media(max-width:760px){.user-search{width:100%;max-width:none;margin-left:0}.users-scroll{max-height:65vh}.pass-cell{min-width:210px}.users-scroll table{min-width:850px}.worker-name-field{grid-column:1/-1!important;min-width:100%}}
 </style>
-<script src="https://unpkg.com/html5-qrcode" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/html5-qrcode.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com//library.20.0/umd/index.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -1435,6 +1436,168 @@ body{height:100vh;overflow:hidden!important;background:#eef4f8!important}
   </footer>
 </div>
 {% endif %}
+<script>
+// ===== PRO TOTAL: DNI automático + cámara QR/BARRAS para CONSUMOS =====
+(function(){
+  let proTimer = null;
+  let proScanner = null;
+  let proStream = null;
+  let proBusy = false;
+
+  function dniClean(v){
+    const raw = String(v || '').trim();
+    const only = raw.replace(/\D/g,'');
+    if (only.length === 8) return only;
+    const labeled = raw.toUpperCase().match(/(?:DNI|DOC(?:UMENTO)?|DOCUMENT|NRO|NUMERO|NÚMERO)\D{0,20}(\d{8})(?!\d)/);
+    if (labeled) return labeled[1];
+    const eight = raw.match(/(^|\D)(\d{8})(?!\d)/);
+    if (eight) return eight[2];
+    if (only.length > 8) return only.slice(-8);
+    return only.slice(0,8);
+  }
+  function toast(msg, ok=true){
+    let d = document.createElement('div');
+    d.textContent = msg;
+    d.style.cssText = 'position:fixed;left:12px;right:12px;bottom:18px;z-index:999999;padding:13px 15px;border-radius:13px;font-weight:900;color:white;text-align:center;box-shadow:0 10px 28px rgba(0,0,0,.25);background:'+(ok?'#17a34a':'#b91c1c');
+    document.body.appendChild(d); setTimeout(()=>d.remove(), 1800);
+    try{ if(navigator.vibrate) navigator.vibrate(ok?90:[80,50,80]); }catch(e){}
+  }
+  function beep(){
+    try{
+      const C = window.AudioContext || window.webkitAudioContext;
+      const c = new C(); const o = c.createOscillator(); const g = c.createGain();
+      o.connect(g); g.connect(c.destination); o.frequency.value = 920; g.gain.value = .08;
+      o.start(); setTimeout(()=>{o.stop(); c.close();}, 130);
+    }catch(e){}
+  }
+  function setNombre(data, dni){
+    const nombre = document.getElementById('nombre_trabajador') || document.querySelector('[name="nombre"],#nombre');
+    const info = document.getElementById('info_trabajador_consumo');
+    if(data && (data.ok || data.success || data.nombre)){
+      if(nombre){ nombre.value = data.nombre || ''; nombre.title = data.nombre || ''; }
+      if(info){
+        info.style.display='block';
+        info.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px"><div><b>Trabajador</b><br>'+(data.nombre||'-')+'</div><div><b>DNI</b><br>'+dni+'</div><div><b>Área</b><br>'+(data.area||'-')+'</div><div><b>Estado</b><br><span class="badge ok">Activo</span></div></div>';
+      }
+      beep(); return true;
+    } else {
+      if(nombre){ nombre.value = 'DNI no encontrado'; nombre.title = 'DNI no encontrado'; }
+      if(info){ info.style.display='block'; info.innerHTML='<span style="color:#991b1b">DNI no encontrado en Trabajadores: '+dni+'</span>'; }
+      return false;
+    }
+  }
+  async function buscarAutoDniConsumo(force=false){
+    const inp = document.getElementById('dni_consumo') || document.querySelector('input[name="dni"]');
+    if(!inp) return;
+    const dni = dniClean(inp.value);
+    inp.value = dni;
+    const nombre = document.getElementById('nombre_trabajador') || document.querySelector('[name="nombre"],#nombre');
+    if(dni.length < 8){ if(nombre) nombre.value=''; return; }
+    if(nombre) nombre.value = 'Validando DNI...';
+    try{
+      const r = await fetch('/api/trabajador/' + encodeURIComponent(dni) + '?_=' + Date.now(), {cache:'no-store', credentials:'same-origin'});
+      const data = await r.json();
+      const ok = setNombre(data, dni);
+      if(ok && document.getElementById('modo_lote')?.checked && typeof agregarDniLote === 'function'){
+        setTimeout(()=>agregarDniLote(dni, data.nombre || ''), 80);
+      }
+    }catch(e){ if(nombre) nombre.value='Error validando DNI'; toast('No se pudo consultar el DNI.', false); }
+  }
+  window.buscarAutoDniConsumo = buscarAutoDniConsumo;
+  window.dniInputHandler = function(){
+    const inp = document.getElementById('dni_consumo') || document.querySelector('input[name="dni"]');
+    if(!inp) return;
+    inp.value = dniClean(inp.value);
+    clearTimeout(proTimer);
+    proTimer = setTimeout(()=>buscarAutoDniConsumo(false), inp.value.length === 8 ? 20 : 120);
+  };
+  async function procesarLectura(texto){
+    if(proBusy) return;
+    const dni = dniClean(texto);
+    if(dni.length !== 8){ toast('No detecté un DNI de 8 dígitos.', false); return; }
+    proBusy = true;
+    const inp = document.getElementById('dni_consumo') || document.querySelector('input[name="dni"]');
+    if(inp) inp.value = dni;
+    await buscarAutoDniConsumo(true);
+    toast('DNI leído: ' + dni, true);
+    setTimeout(()=>{proBusy=false;}, 900);
+  }
+  window.abrirScannerQR = async function(){
+    let cont = document.getElementById('qr-reader');
+    if(!cont){
+      cont = document.createElement('div'); cont.id = 'qr-reader';
+      const form = document.getElementById('form_consumo') || document.body;
+      form.appendChild(cont);
+    }
+    if(location.protocol !== 'https:' && !['localhost','127.0.0.1'].includes(location.hostname)){
+      toast('La cámara requiere HTTPS. Usa el enlace de Render con https://', false);
+    }
+    cont.style.display='block';
+    cont.innerHTML = '<div style="grid-column:1/-1;padding:12px;border:1px solid #dce6f0;border-radius:14px;background:#f8fbff"><b>📷 Cámara QR / Barras activa</b><div id="qr-reader-live" style="width:100%;max-width:460px;margin-top:8px"></div><video id="qr-video-live" playsinline muted autoplay style="display:none;width:100%;max-width:460px;border-radius:12px;margin-top:8px;background:#000"></video><canvas id="qr-canvas-live" style="display:none"></canvas><button type="button" class="btn-red" style="margin-top:8px" onclick="cerrarScannerQR()">Cerrar cámara</button><br><small>Permite la cámara. En celular usa Chrome y HTTPS.</small></div>';
+    try{
+      if(window.Html5Qrcode){
+        const formats = window.Html5QrcodeSupportedFormats ? [
+          Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.PDF_417
+        ].filter(Boolean) : undefined;
+        proScanner = new Html5Qrcode('qr-reader-live', formats ? {formatsToSupport:formats, verbose:false} : undefined);
+        await proScanner.start({facingMode:{ideal:'environment'}}, {fps:15, qrbox:{width:280,height:190}, rememberLastUsedCamera:true}, async txt=>{
+          await procesarLectura(txt);
+          if(!document.getElementById('modo_lote')?.checked) cerrarScannerQR();
+        }, ()=>{});
+        toast('Cámara activada.', true); return;
+      }
+    }catch(e){ console.warn('html5-qrcode no abrió, usando respaldo', e); }
+    await scannerNativo();
+  };
+  async function scannerNativo(){
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Navegador sin cámara');
+    const video = document.getElementById('qr-video-live'); const canvas = document.getElementById('qr-canvas-live');
+    const live = document.getElementById('qr-reader-live'); if(live) live.innerHTML='<b>Respaldo con cámara nativa...</b>';
+    proStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}, audio:false});
+    video.srcObject = proStream; video.style.display='block'; await video.play();
+    let detector = null;
+    if('BarcodeDetector' in window){ try{ detector = new BarcodeDetector({formats:['qr_code','code_128','code_39','ean_13','ean_8','itf','upc_a','upc_e','pdf417']}); }catch(e){} }
+    const loop = async()=>{
+      if(!proStream) return;
+      try{
+        if(detector){ const codes = await detector.detect(video); if(codes && codes.length){ await procesarLectura(codes[0].rawValue||''); if(!document.getElementById('modo_lote')?.checked){cerrarScannerQR(); return;} } }
+        if(window.jsQR && video.videoWidth){
+          canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+          const ctx=canvas.getContext('2d',{willReadFrequently:true}); ctx.drawImage(video,0,0,canvas.width,canvas.height);
+          const img=ctx.getImageData(0,0,canvas.width,canvas.height); const code=jsQR(img.data,img.width,img.height);
+          if(code && code.data){ await procesarLectura(code.data); if(!document.getElementById('modo_lote')?.checked){cerrarScannerQR(); return;} }
+        }
+      }catch(e){}
+      requestAnimationFrame(loop);
+    };
+    toast('Cámara activada.', true); requestAnimationFrame(loop);
+  }
+  window.cerrarScannerQR = function(){
+    try{ if(proScanner && proScanner.stop) proScanner.stop().catch(()=>{}).finally(()=>{try{proScanner.clear();}catch(e){}}); }catch(e){}
+    try{ if(proStream){ proStream.getTracks().forEach(t=>t.stop()); } }catch(e){}
+    proScanner=null; proStream=null;
+    const cont=document.getElementById('qr-reader'); if(cont){cont.style.display='none'; cont.innerHTML='';}
+  };
+  document.addEventListener('DOMContentLoaded', function(){
+    const inp = document.getElementById('dni_consumo');
+    if(inp){
+      inp.setAttribute('oninput','dniInputHandler()');
+      inp.setAttribute('onkeyup','dniInputHandler()');
+      inp.addEventListener('input', window.dniInputHandler, true);
+      inp.addEventListener('paste', ()=>setTimeout(window.dniInputHandler, 30), true);
+      inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){e.preventDefault(); buscarAutoDniConsumo(true);} }, true);
+      setTimeout(()=>inp.focus(),250);
+    }
+    const btn = document.getElementById('btn_qr');
+    if(btn) btn.onclick = window.abrirScannerQR;
+  });
+})();
+</script>
+
 </body>
 </html>
 """
