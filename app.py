@@ -407,11 +407,32 @@ def clean_text(v):
     return str(v).strip()
 
 
+def extract_dni(v):
+    """Extrae un DNI peruano de 8 digitos desde texto manual, QR o codigo de barras.
+    Prioriza numeros asociados a DNI/documento y evita devolver cadenas largas completas.
+    """
+    raw = str(v or "").strip()
+    if not raw:
+        return ""
+    digits_only = re.sub(r"\D", "", raw)
+    if len(digits_only) == 8:
+        return digits_only
+    if 1 <= len(digits_only) < 8:
+        return digits_only.zfill(8)
+
+    txt = raw.upper()
+    m = re.search(r"(?:DNI|DOC(?:UMENTO)?|NRO|NUM(?:ERO)?)\D{0,12}(\d{8})(?!\d)", txt)
+    if m:
+        return m.group(1)
+    m = re.search(r"(?<!\d)(\d{8})(?!\d)", txt)
+    if m:
+        return m.group(1)
+    if len(digits_only) > 8:
+        return digits_only[-8:]
+    return ""
+
 def clean_dni(v):
-    s = re.sub(r"\D", "", str(v or ""))
-    if 1 <= len(s) < 8:
-        return s.zfill(8)
-    return s[:20]
+    return extract_dni(v)
 
 
 def cfg_get(clave, default=""):
@@ -1645,8 +1666,11 @@ def api_trabajador(dni):
     dni = clean_dni(dni)
     t = q_one("SELECT dni,nombre,empresa,area,cargo FROM trabajadores WHERE dni=? AND activo=1", (dni,))
     if not t:
-        return jsonify({"ok": False, "success": False, "msg": "DNI no encontrado"})
-    return jsonify({"ok": True, "success": True, "dni": t["dni"], "nombre": t["nombre"], "empresa": t["empresa"], "area": t["area"], "cargo": t["cargo"]})
+        resp = jsonify({"ok": False, "success": False, "msg": "DNI no encontrado"})
+    else:
+        resp = jsonify({"ok": True, "success": True, "dni": t["dni"], "nombre": t["nombre"], "empresa": t["empresa"], "area": t["area"], "cargo": t["cargo"]})
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return resp
 
 @app.route("/api/buscar_dni/<dni>")
 @login_required
@@ -1847,7 +1871,19 @@ def consumos():
     let ultimoDniValidado = '';
     let qrActivo = null;
 
-    function soloDni(v){{ return (v || '').replace(/\D/g,'').slice(0,8); }}
+    function soloDni(v){{
+      const raw = String(v || '').trim();
+      if(!raw) return '';
+      const only = raw.replace(/\D/g,'');
+      if(only.length === 8) return only;
+      if(only.length > 0 && only.length < 8) return only.slice(0,8);
+      const labeled = raw.toUpperCase().match(/(?:DNI|DOC(?:UMENTO)?|NRO|NUM(?:ERO)?)\D{{0,12}}(\d{{8}})(?!\d)/);
+      if(labeled) return labeled[1];
+      const standalone = raw.match(/(^|\D)(\d{{8}})(?!\d)/);
+      if(standalone) return standalone[2];
+      if(only.length > 8) return only.slice(-8);
+      return only.slice(0,8);
+    }}
     function getLoteArray(){{
       const box = document.getElementById('dni_lote');
       if(!box) return [];
@@ -1976,37 +2012,69 @@ def consumos():
       if(!cont) return;
       cont.style.display='block';
       cont.innerHTML = `<div style="padding:10px;border:1px solid #dce6f0;border-radius:12px;background:#f8fbff">
-        <b>Escáner QR activo</b><br>
-        <div id="qr-reader-live" style="width:100%;max-width:380px;margin-top:8px"></div>
+        <b>Escáner QR / barras activo</b><br>
+        <div id="qr-reader-live" style="width:100%;max-width:420px;margin-top:8px"></div>
+        <video id="qr-video-live" playsinline muted style="display:none;width:100%;max-width:420px;border-radius:12px;margin-top:8px;background:#000"></video>
         <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
           <button type="button" class="btn-red" onclick="cerrarScannerQR()">Cerrar cámara</button>
         </div>
-        <small class="muted">Permite la cámara. En celular usa HTTPS de Render y Chrome.</small>
+        <small class="muted">En celular debe abrirse con HTTPS de Render. Permite la cámara y apunta al QR o código de barras.</small>
       </div>`;
       try{{
         if(window.Html5Qrcode){{
           qrActivo = new Html5Qrcode('qr-reader-live');
           await qrActivo.start(
             {{ facingMode: 'environment' }},
-            {{ fps: 10, qrbox: {{ width: 250, height: 250 }} }},
+            {{ fps: 12, qrbox: {{ width: 260, height: 260 }}, rememberLastUsedCamera: true }},
             async (decodedText) => {{
               await procesarDniQR(decodedText);
               if(!document.getElementById('modo_lote')?.checked){{ cerrarScannerQR(); }}
             }}
           );
+          avisoMovil('Cámara activada. Escanea QR.', true);
           return;
         }}
-        alert('No cargó el lector QR. Revisa internet/CDN o digita el DNI manualmente.');
+        await iniciarScannerNativo();
       }}catch(e){{
-        alert('No se pudo abrir la cámara. Da permiso de cámara en el navegador y verifica HTTPS en Render. Detalle: ' + (e && e.message ? e.message : e));
+        try{{ await iniciarScannerNativo(); }}catch(e2){{
+          alert('No se pudo abrir la cámara. Activa permisos, usa HTTPS en Render y Chrome/Edge. Detalle: ' + (e2 && e2.message ? e2.message : e2));
+        }}
       }}
+    }}
+    async function iniciarScannerNativo(){{
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('El navegador no permite cámara.');
+      if(!('BarcodeDetector' in window)) throw new Error('No cargó lector QR y este navegador no tiene BarcodeDetector.');
+      const formatos = ['qr_code','code_128','code_39','ean_13','ean_8','itf','codabar','upc_a','upc_e','pdf417'];
+      const detector = new BarcodeDetector({{formats: formatos}});
+      const video = document.getElementById('qr-video-live');
+      const live = document.getElementById('qr-reader-live');
+      if(live) live.innerHTML = '<b>Usando cámara nativa para QR/barras...</b>';
+      const stream = await navigator.mediaDevices.getUserMedia({{video: {{facingMode: {{ideal:'environment'}}}}, audio:false}});
+      qrActivo = {{stream: stream, stopped:false}};
+      video.srcObject = stream; video.style.display='block';
+      await video.play();
+      avisoMovil('Cámara activada. Escanea QR o barras.', true);
+      const loop = async () => {{
+        if(!qrActivo || qrActivo.stopped) return;
+        try{{
+          const codes = await detector.detect(video);
+          if(codes && codes.length){{
+            const valor = codes[0].rawValue || '';
+            await procesarDniQR(valor);
+            if(!document.getElementById('modo_lote')?.checked){{ cerrarScannerQR(); return; }}
+          }}
+        }}catch(e){{}}
+        requestAnimationFrame(loop);
+      }};
+      requestAnimationFrame(loop);
     }}
     function cerrarScannerQR(){{
       try{{
         if(qrActivo){{
           if(typeof qrActivo.stop === 'function'){{
             qrActivo.stop().catch(()=>{{}}).finally(()=>{{ try{{ qrActivo.clear(); }}catch(e){{}} }});
-          }}else if(qrActivo.stream){{
+          }}
+          if(qrActivo.stream){{
             qrActivo.stopped = true;
             qrActivo.stream.getTracks().forEach(t => t.stop());
           }}
