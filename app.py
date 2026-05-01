@@ -31,6 +31,7 @@ from functools import wraps
 from email.message import EmailMessage
 
 import pandas as pd
+from openpyxl import load_workbook
 from flask import (
     Flask, request, redirect, url_for, session, send_file,
     render_template_string, flash, jsonify
@@ -493,6 +494,99 @@ def col_value(row, *names):
             if clean_text(val):
                 return val
     return ""
+
+
+def leer_trabajadores_excel_stream(file_storage):
+    """Lee TODO el Excel de trabajadores sin cargar hojas completas en memoria.
+    Devuelve: registros(dict por DNI), total_filas, omitidos.
+    Optimizado para Render: openpyxl en modo read_only para .xlsx.
+    """
+    filename = (file_storage.filename or "").lower()
+    registros = {}
+    omitidos = 0
+    total = 0
+    file_storage.stream.seek(0)
+
+    if filename.endswith(".xlsx"):
+        wb = load_workbook(file_storage.stream, read_only=True, data_only=True)
+        ws = wb.active
+        rows = ws.iter_rows(values_only=True)
+        try:
+            header = next(rows)
+        except StopIteration:
+            wb.close()
+            return {}, 0, 0
+
+        cols = normalize_columns(header)
+        for values in rows:
+            total += 1
+            r = dict(zip(cols, values))
+            dni = clean_dni(col_value(r, "DNI"))
+            nombre = clean_text(col_value(r, "NOMBRE")).upper()
+            if len(dni) != 8 or not nombre:
+                omitidos += 1
+                continue
+            registros[dni] = {
+                "empresa": (clean_text(col_value(r, "EMPRESA")) or "PRIZE").upper(),
+                "dni": dni,
+                "nombre": nombre,
+                "cargo": clean_text(col_value(r, "CARGO")).upper(),
+                "area": clean_text(col_value(r, "AREA")).upper(),
+            }
+        wb.close()
+        return registros, total, omitidos
+
+    file_storage.stream.seek(0)
+    df = pd.read_excel(file_storage, dtype=str).fillna("")
+    df.columns = normalize_columns(df.columns)
+    for _, r in df.iterrows():
+        total += 1
+        dni = clean_dni(col_value(r, "DNI"))
+        nombre = clean_text(col_value(r, "NOMBRE")).upper()
+        if len(dni) != 8 or not nombre:
+            omitidos += 1
+            continue
+        registros[dni] = {
+            "empresa": (clean_text(col_value(r, "EMPRESA")) or "PRIZE").upper(),
+            "dni": dni,
+            "nombre": nombre,
+            "cargo": clean_text(col_value(r, "CARGO")).upper(),
+            "area": clean_text(col_value(r, "AREA")).upper(),
+        }
+    return registros, total, omitidos
+
+
+def reemplazar_trabajadores_batch(registros):
+    """Reemplaza la tabla trabajadores en UNA sola conexión y por lotes.
+    Evita abrir miles de conexiones en Render y evita SIGKILL por memoria/tiempo.
+    """
+    data = [(r["empresa"], r["dni"], r["nombre"], r["cargo"], r["area"]) for r in registros]
+    if not data:
+        return 0
+
+    with get_conn() as conn:
+        if USE_POSTGRES:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM trabajadores")
+                psycopg2.extras.execute_batch(
+                    cur,
+                    """
+                    INSERT INTO trabajadores(empresa,dni,nombre,cargo,area,activo)
+                    VALUES(%s,%s,%s,%s,%s,1)
+                    """,
+                    data,
+                    page_size=500,
+                )
+                conn.commit()
+        else:
+            conn.execute("DELETE FROM trabajadores")
+            conn.executemany(
+                "INSERT INTO trabajadores(empresa,dni,nombre,cargo,area,activo) VALUES(?,?,?,?,?,1)",
+                data,
+            )
+            conn.commit()
+    return len(data)
+
 
 def dia_cerrado(fecha_iso=None):
     return q_one("SELECT * FROM cierres WHERE fecha=?", (fecha_iso or hoy_iso(),))
@@ -2706,46 +2800,20 @@ def trabajadores():
                 flash("Sube un archivo Excel válido (.xlsx o .xls).", "error")
                 return redirect(url_for("trabajadores"))
 
-            # Lectura robusta. En Render se recomienda .xlsx con openpyxl.
-            if f.filename.lower().endswith(".xlsx"):
-                df = pd.read_excel(f, dtype=str, engine="openpyxl").fillna("")
-            else:
-                df = pd.read_excel(f, dtype=str).fillna("")
-            df.columns = normalize_columns(df.columns)
+            registros_dict, total_filas, omitidos = leer_trabajadores_excel_stream(f)
 
-            # Acepta columnas comunes: DNI, DOCUMENTO, APELLIDOS Y NOMBRES, NOMBRE COMPLETO, TRABAJADOR, etc.
-            registros = {}
-            omitidos = 0
-            for _, r in df.iterrows():
-                dni = clean_dni(col_value(r, "DNI"))
-                nombre = clean_text(col_value(r, "NOMBRE")).upper()
-                if len(dni) != 8 or not nombre:
-                    omitidos += 1
-                    continue
-                registros[dni] = {
-                    "empresa": (clean_text(col_value(r, "EMPRESA")) or "PRIZE").upper(),
-                    "dni": dni,
-                    "nombre": nombre,
-                    "cargo": clean_text(col_value(r, "CARGO")).upper(),
-                    "area": clean_text(col_value(r, "AREA")).upper(),
-                }
-
-            if not registros:
+            if not registros_dict:
                 flash("No se importó nada: no encontré filas válidas con DNI de 8 dígitos y NOMBRE. Descarga la plantilla y vuelve a intentar.", "error")
                 return redirect(url_for("trabajadores"))
 
-            # REEMPLAZO TOTAL: la base de trabajadores queda igual al Excel importado.
-            # No borra consumos históricos; solo reemplaza la tabla de trabajadores.
-            q_exec("DELETE FROM trabajadores", ())
-            creados = 0
-            for r in registros.values():
-                q_exec("INSERT INTO trabajadores(empresa,dni,nombre,cargo,area,activo) VALUES(?,?,?,?,?,1)",
-                       (r["empresa"], r["dni"], r["nombre"], r["cargo"], r["area"]))
-                creados += 1
+            # REEMPLAZO TOTAL OPTIMIZADO:
+            # Carga TODO el Excel válido, pero en una sola transacción y por lotes.
+            # Esto evita que Render mate el proceso por abrir miles de conexiones.
+            creados = reemplazar_trabajadores_batch(list(registros_dict.values()))
 
             q_exec("INSERT INTO importaciones(archivo,total,creados,errores,usuario) VALUES(?,?,?,?,?)",
-                   (f.filename, len(df), creados, omitidos, session.get("user", "")))
-            flash(f"Base de trabajadores reemplazada correctamente: {creados} trabajadores cargados. Omitidos: {omitidos}.", "ok")
+                   (f.filename, total_filas, creados, omitidos, session.get("user", "")))
+            flash(f"Base de trabajadores reemplazada correctamente: {creados} trabajadores cargados desde todo el Excel. Omitidos: {omitidos}.", "ok")
             return redirect(url_for("trabajadores"))
         except Exception as e:
             app.logger.exception("Error importando trabajadores")
