@@ -1424,6 +1424,26 @@ body{height:100vh;overflow:hidden!important;background:#eef4f8!important}
 .pass-view{height:38px;padding:8px 10px;border-radius:10px;background:#f8fafc;font-weight:800;min-width:160px}
 .eye-btn{padding:8px 10px;border-radius:10px;background:#0d73b8;box-shadow:none}
 @media(max-width:760px){.user-search{width:100%;max-width:none;margin-left:0}.users-scroll{max-height:65vh}.pass-cell{min-width:210px}.users-scroll table{min-width:850px}.worker-name-field{grid-column:1/-1!important;min-width:100%}}
+
+
+/* ===== NIVEL DIOS COMEDOR: REGISTRO MASIVO VISUAL / LECTOR CONTINUO ===== */
+.lote-dios-panel{display:none;grid-column:1/-1;border:2px solid #16a34a;border-radius:18px;padding:16px;background:linear-gradient(135deg,#f0fdf4,#ffffff);box-shadow:0 14px 32px rgba(22,163,74,.16)}
+.lote-dios-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.lote-dios-title{font-size:20px;font-weight:950;color:#064e3b;line-height:1.15}
+.lote-dios-sub{font-size:12px;color:#64748b;font-weight:750;margin-top:4px}
+.lote-dios-counter{min-width:118px;text-align:center;border-radius:16px;padding:10px 14px;background:#16a34a;color:#fff;font-weight:950;box-shadow:0 10px 22px rgba(22,163,74,.22)}
+.lote-dios-counter b{display:block;font-size:30px;line-height:1}
+.lote-dios-counter span{font-size:11px;letter-spacing:.5px}
+.lote-dios-status{display:grid;grid-template-columns:repeat(3,minmax(160px,1fr));gap:10px;margin:10px 0}
+.lote-dios-status div{border:1px solid #bbf7d0;background:#ecfdf5;border-radius:14px;padding:10px;font-weight:900;color:#14532d}
+.lote-dios-list-head,.lote-dios-row{display:grid;grid-template-columns:70px 135px minmax(240px,1fr) 120px 72px;gap:8px;align-items:center}
+.lote-dios-list-head{padding:10px;background:#dcfce7;border:1px solid #86efac;border-radius:14px 14px 0 0;font-size:12px;font-weight:950;color:#14532d}
+.lote-dios-list{max-height:260px;overflow:auto;background:white;border:1px solid #bbf7d0;border-top:0;border-radius:0 0 14px 14px}
+.lote-dios-row{padding:10px;border-bottom:1px solid #eef2f7;font-size:13px;color:#25364a}
+.lote-dios-row:last-child{border-bottom:0}.lote-dios-row b{font-weight:950}.lote-dios-row .ok{color:#166534;font-weight:950}.lote-dios-empty{padding:14px;color:#64748b;font-weight:800}
+.lote-dios-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.lote-dios-actions button{width:auto!important}.cam-on{background:#052e16!important;color:#dcfce7!important;border:1px solid #22c55e!important;border-radius:12px;padding:8px 10px;font-weight:950;display:inline-flex;align-items:center;gap:8px}
+@media(max-width:760px){.lote-dios-status{grid-template-columns:1fr}.lote-dios-list-head{display:none}.lote-dios-row{grid-template-columns:1fr;gap:3px;border:1px solid #e2e8f0;border-radius:12px;margin:8px}.lote-dios-actions button{width:100%!important}.lote-dios-counter{width:100%}}
+
 </style>
 <script src="https://unpkg.com/html5-qrcode.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com//library.20.0/umd/index.min.js" crossorigin="anonymous"></script>
@@ -2131,20 +2151,26 @@ def consumos():
         <input name="observacion" placeholder="Observación / QR DNI" {disabled}>
         <label style="font-weight:900"><input type="checkbox" id="modo_lote" name="modo_lote" value="1" onchange="toggleLote()"> Registro masivo / lote</label>
         {('<label style="font-weight:900"><input type="checkbox" name="adicional" value="1"> Consumo adicional</label>' if session.get('role')=='admin' else '')}
-        <div id="lote_panel" style="display:none;grid-column:1/-1;border:2px solid #17a34a;border-radius:16px;padding:14px;background:#f0fdf4;box-shadow:0 10px 24px rgba(22,163,74,.12)">
-          <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+        <div id="lote_panel" class="lote-dios-panel">
+          <div class="lote-dios-head">
             <div>
-              <b style="font-size:18px;color:#14532d">📦 Espacio temporal de REGISTRO MASIVO</b><br>
-              <span class="muted small">Cada DNI válido se guarda aquí primero. Recién se graba en CONSUMOS al presionar REGISTRO DE CONSUMO.</span>
+              <div class="lote-dios-title">📦 REGISTRO MASIVO / LOTE EN VIVO</div>
+              <div class="lote-dios-sub">La cámara queda encendida. Cada DNI detectado aparece aquí antes del clic final.</div>
             </div>
-            <span id="lote_count" class="badge ok" style="font-size:15px">0</span>
+            <div class="lote-dios-counter"><b id="lote_total_big">0</b><span>TRABAJADORES EN LOTE</span></div>
           </div>
-          <div style="margin-top:10px;display:grid;grid-template-columns:70px 130px 1fr 62px;gap:8px;padding:9px 10px;background:#dcfce7;border:1px solid #86efac;border-radius:12px 12px 0 0;font-size:12px;font-weight:950;color:#14532d">
-            <div>#</div><div>DNI</div><div>Trabajador detectado</div><div>Quitar</div>
+          <div class="lote-dios-status">
+            <div>📷 Cámara: <span id="camara_estado_lote">apagada</span></div>
+            <div>✅ Validados: <span id="lote_count">0</span></div>
+            <div>🕒 Último DNI: <span id="ultimo_dni_lote">-</span></div>
           </div>
-          <div id="lote_lista" style="font-size:13px;color:#25364a;max-height:240px;overflow:auto;background:white;border:1px solid #bbf7d0;border-top:0;border-radius:0 0 12px 12px;padding:0"></div>
-          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-            <button type="button" class="btn-red" style="width:auto;min-height:36px;padding:8px 12px" onclick="limpiarLoteConsumos()">Limpiar lote</button>
+          <div class="lote-dios-list-head">
+            <div>#</div><div>DNI</div><div>Trabajador detectado</div><div>Estado</div><div>Quitar</div>
+          </div>
+          <div id="lote_lista" class="lote-dios-list"></div>
+          <div class="lote-dios-actions">
+            <button type="button" class="btn-blue" style="min-height:36px;padding:8px 12px" onclick="agregarActualAlLote()">➕ Agregar DNI digitado</button>
+            <button type="button" class="btn-red" style="min-height:36px;padding:8px 12px" onclick="limpiarLoteConsumos()">Limpiar lote</button>
           </div>
         </div>
         <textarea id="dni_lote" name="dni_lote" placeholder="DNIs validados para lote" style="display:none;grid-column:1/-1;min-height:90px"></textarea>
@@ -2159,6 +2185,8 @@ def consumos():
     let ultimoDniValidado = '';
     let qrActivo = null;
     let scannerBusy = false;
+    let ultimoScanDni = '';
+    let ultimoScanTs = 0;
 
     function soloDni(v){{
       const raw = String(v || '').trim();
@@ -2199,10 +2227,14 @@ def consumos():
       if(box) box.value = limpio.join('\n');
       setLoteDetalle(nuevoDetalle);
       if(count) count.textContent = limpio.length + ' DNI';
+      const big = document.getElementById('lote_total_big');
+      if(big) big.textContent = limpio.length;
+      const ultimo = document.getElementById('ultimo_dni_lote');
+      if(ultimo) ultimo.textContent = limpio.length ? limpio[limpio.length-1] : '-';
       if(lista){{
         lista.innerHTML = limpio.length
-          ? limpio.map((d, i) => `<div style="display:grid;grid-template-columns:70px 130px 1fr 62px;gap:8px;align-items:center;padding:9px 10px;border-bottom:1px solid #e8eef5"><b>${{i+1}}</b><b>${{d}}</b><span>${{(nuevoDetalle[d] || 'Trabajador validado')}}</span><button type="button" onclick="quitarDniLote('${{d}}')" style="min-height:0;width:38px;padding:6px;border-radius:999px;background:#ef4444;box-shadow:none">×</button></div>`).join('')
-          : '<div style="padding:12px" class="muted">Aún no hay DNIs guardados. Digite o escanee para acumular antes del clic final.</div>';
+          ? limpio.map((d, i) => `<div class="lote-dios-row"><b>${{i+1}}</b><b>${{d}}</b><span>${{(nuevoDetalle[d] || 'Trabajador validado')}}</span><span class="ok">VALIDADO</span><button type="button" onclick="quitarDniLote('${{d}}')" style="min-height:0;width:38px;padding:6px;border-radius:999px;background:#ef4444;box-shadow:none">×</button></div>`).join('')
+          : '<div class="lote-dios-empty">Aún no hay DNIs guardados. Digita o escanea para acumular antes del clic final.</div>';
       }}
       try{{ localStorage.setItem('lote_consumos_' + new Date().toISOString().slice(0,10), limpio.join('\n')); }}catch(e){{}}
     }}
@@ -2217,6 +2249,7 @@ def consumos():
     }}
     function limpiarLoteConsumos(){{
       setLoteArray([], {{}});
+      try{{ if(sessionStorage.getItem('limpiar_lote_tras_envio') === '1'){{ localStorage.removeItem('lote_consumos_' + new Date().toISOString().slice(0,10)); localStorage.removeItem('lote_consumos_detalle_' + new Date().toISOString().slice(0,10)); sessionStorage.removeItem('limpiar_lote_tras_envio'); }} }}catch(e){{}}
       const inp = document.getElementById('dni_consumo');
       const out = document.getElementById('nombre_trabajador');
       if(inp) inp.value='';
@@ -2316,12 +2349,22 @@ def consumos():
       ultimoDniValidado = '';
       setTimeout(()=>inp?.focus(), 120);
     }}
+    async function agregarActualAlLote(){{
+      const inp = document.getElementById('dni_consumo');
+      const dni = soloDni(inp ? inp.value : '');
+      if(dni.length !== 8){{ avisoMovil('Digite o escanee un DNI válido de 8 dígitos.', false); return; }}
+      try{{
+        const d = await validarDni(dni);
+        if(d.ok) agregarDniLote(dni, d.nombre || 'Trabajador validado');
+        else avisoMovil('DNI no encontrado: ' + dni, false);
+      }}catch(e){{ avisoMovil('No se pudo validar el DNI.', false); }}
+    }}
     function toggleLote(){{
       const on = document.getElementById('modo_lote')?.checked;
       const box = document.getElementById('dni_lote');
       const panel = document.getElementById('lote_panel');
       const dni = document.getElementById('dni_consumo');
-      if(box) box.style.display = on ? 'block' : 'none';
+      if(box) box.style.display = 'none';
       if(panel) panel.style.display = on ? 'block' : 'none';
       if(dni) dni.required = !on;
       setLoteArray(getLoteArray());
@@ -2341,6 +2384,9 @@ def consumos():
       if(scannerBusy) return;
       const dni = soloDni(texto);
       if(dni.length !== 8){{ avisoMovil('QR/barras inválido: no contiene DNI de 8 dígitos.', false); return; }}
+      const ahoraScan = Date.now();
+      if(document.getElementById('modo_lote')?.checked && dni === ultimoScanDni && (ahoraScan - ultimoScanTs) < 2500) return;
+      ultimoScanDni = dni; ultimoScanTs = ahoraScan;
       scannerBusy = true;
       const inp = document.getElementById('dni_consumo');
       const out = document.getElementById('nombre_trabajador');
@@ -2359,7 +2405,7 @@ def consumos():
           avisoMovil('DNI no encontrado: ' + dni, false);
         }}
       }}catch(e){{ avisoMovil('No se pudo validar el DNI.', false); }}
-      setTimeout(()=>{{ scannerBusy=false; }}, 900);
+      setTimeout(()=>{{ scannerBusy=false; }}, document.getElementById('modo_lote')?.checked ? 350 : 900);
     }}
     async function abrirScannerQR(){{
       const cont = document.getElementById('qr-reader');
@@ -2398,7 +2444,8 @@ def consumos():
             async (decodedText) => {{ await procesarDniQR(decodedText); if(!document.getElementById('modo_lote')?.checked){{ cerrarScannerQR(); }} }},
             () => {{}}
           );
-          avisoMovil('Cámara activada. Escanea QR o barras.', true);
+          const ce = document.getElementById('camara_estado_lote'); if(ce) ce.innerHTML = '<span class="cam-on">● encendida continua</span>';
+          avisoMovil('Cámara activada. En modo masivo NO se apaga al detectar.', true);
           return;
         }}
       }}catch(e){{ console.warn('Html5Qrcode falló, usando respaldo:', e); }}
@@ -2419,6 +2466,7 @@ def consumos():
       if('BarcodeDetector' in window){{
         try{{ detector = new BarcodeDetector({{formats:['qr_code','code_128','code_39','ean_13','ean_8','itf','codabar','upc_a','upc_e','pdf417']}}); }}catch(e){{}}
       }}
+      const ce = document.getElementById('camara_estado_lote'); if(ce) ce.innerHTML = '<span class="cam-on">● encendida continua</span>';
       avisoMovil('Cámara activada.', true);
       const loop = async () => {{
         if(!qrActivo || qrActivo.stopped) return;
@@ -2460,6 +2508,7 @@ def consumos():
       }}catch(e){{}}
       qrActivo = null;
       const cont = document.getElementById('qr-reader');
+      const ce = document.getElementById('camara_estado_lote'); if(ce) ce.textContent = 'apagada';
       if(cont){{ cont.style.display='none'; cont.innerHTML=''; }}
     }}
     function validarAntesEnviar(e){{
@@ -2476,6 +2525,7 @@ def consumos():
         document.getElementById('dni_lote').value = arr.join('\n');
         if(!confirm('Se registrarán ' + arr.length + ' consumo(s) para la fecha de hoy. ¿Confirmas REGISTRO DE CONSUMO?')){{ e.preventDefault(); return false; }}
       }}
+      try{{ sessionStorage.setItem('limpiar_lote_tras_envio', '1'); }}catch(ex){{}}
       return true;
     }}
     document.addEventListener('DOMContentLoaded', ()=>{{
