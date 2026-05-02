@@ -509,55 +509,23 @@ def col_value(row, *names):
 
 
 def leer_trabajadores_excel_stream(file_storage):
-    """Lee TODO el Excel de trabajadores sin cargar hojas completas en memoria.
+    """Lee TODO el Excel de trabajadores.
+    - .xlsx: procesa TODAS las hojas visibles del libro con openpyxl read_only.
+    - .xls/.xlsx alternativo: procesa TODAS las hojas con pandas sheet_name=None.
     Devuelve: registros(dict por DNI), total_filas, omitidos.
-    Optimizado para Render: openpyxl en modo read_only para .xlsx.
     """
     filename = (file_storage.filename or "").lower()
     registros = {}
     omitidos = 0
     total = 0
-    file_storage.stream.seek(0)
 
-    if filename.endswith(".xlsx"):
-        wb = load_workbook(file_storage.stream, read_only=True, data_only=True)
-        ws = wb.active
-        rows = ws.iter_rows(values_only=True)
-        try:
-            header = next(rows)
-        except StopIteration:
-            wb.close()
-            return {}, 0, 0
-
-        cols = normalize_columns(header)
-        for values in rows:
-            total += 1
-            r = dict(zip(cols, values))
-            dni = clean_dni(col_value(r, "DNI"))
-            nombre = clean_text(col_value(r, "NOMBRE")).upper()
-            if len(dni) != 8 or not nombre:
-                omitidos += 1
-                continue
-            registros[dni] = {
-                "empresa": (clean_text(col_value(r, "EMPRESA")) or "PRIZE").upper(),
-                "dni": dni,
-                "nombre": nombre,
-                "cargo": clean_text(col_value(r, "CARGO")).upper(),
-                "area": clean_text(col_value(r, "AREA")).upper(),
-            }
-        wb.close()
-        return registros, total, omitidos
-
-    file_storage.stream.seek(0)
-    df = pd.read_excel(file_storage, dtype=str).fillna("")
-    df.columns = normalize_columns(df.columns)
-    for _, r in df.iterrows():
-        total += 1
+    def procesar_fila(r):
+        nonlocal omitidos
         dni = clean_dni(col_value(r, "DNI"))
         nombre = clean_text(col_value(r, "NOMBRE")).upper()
         if len(dni) != 8 or not nombre:
             omitidos += 1
-            continue
+            return
         registros[dni] = {
             "empresa": (clean_text(col_value(r, "EMPRESA")) or "PRIZE").upper(),
             "dni": dni,
@@ -565,8 +533,40 @@ def leer_trabajadores_excel_stream(file_storage):
             "cargo": clean_text(col_value(r, "CARGO")).upper(),
             "area": clean_text(col_value(r, "AREA")).upper(),
         }
-    return registros, total, omitidos
 
+    file_storage.stream.seek(0)
+    if filename.endswith(".xlsx"):
+        wb = load_workbook(file_storage.stream, read_only=True, data_only=True)
+        try:
+            # Antes solo leía la hoja activa. Ahora recorre TODAS las hojas del Excel.
+            for ws in wb.worksheets:
+                rows = ws.iter_rows(values_only=True)
+                try:
+                    header = next(rows)
+                except StopIteration:
+                    continue
+                cols = normalize_columns(header)
+                if not any(c in ("DNI", "DOCUMENTO", "DOCUMENTO_IDENTIDAD", "NUMERO_DOCUMENTO", "NRO_DOCUMENTO", "NOMBRE", "TRABAJADOR") for c in cols):
+                    continue
+                for values in rows:
+                    if not values or not any(clean_text(v) for v in values):
+                        continue
+                    total += 1
+                    procesar_fila(dict(zip(cols, values)))
+        finally:
+            wb.close()
+        return registros, total, omitidos
+
+    # Respaldo para .xls y otros Excel: lee todas las hojas.
+    file_storage.stream.seek(0)
+    hojas = pd.read_excel(file_storage, dtype=str, sheet_name=None)
+    for _, df in hojas.items():
+        df = df.fillna("")
+        df.columns = normalize_columns(df.columns)
+        for _, r in df.iterrows():
+            total += 1
+            procesar_fila(r)
+    return registros, total, omitidos
 
 def reemplazar_trabajadores_batch(registros):
     """Reemplaza la tabla trabajadores en UNA sola conexión y por lotes.
@@ -1590,14 +1590,13 @@ input[type="checkbox"]{width:auto!important;min-height:0!important;height:18px!i
   #prize_mobile_alert{top:calc(env(safe-area-inset-top,0px) + 12px)!important;z-index:2147483647!important;}
 }
 
-/* ===== INDICADOR DE LECTURAS AUTOMATICAS ===== */
-.lectura-counter-pro{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#052e16,#0f8a3a);color:#fff;box-shadow:0 12px 28px rgba(22,163,74,.22);border:1px solid rgba(255,255,255,.14)}
-.lectura-counter-pro .lectura-left{font-weight:950;line-height:1.15}
-.lectura-counter-pro .lectura-sub{font-size:12px;font-weight:800;opacity:.9;margin-top:3px}
-.lectura-counter-pro .lectura-num{min-width:72px;height:58px;border-radius:16px;background:#ffffff;color:#064e3b;display:grid;place-items:center;font-size:30px;font-weight:950;box-shadow:inset 0 0 0 1px rgba(6,78,59,.08)}
-.lectura-counter-pro.ok-flash{animation:lecturaPulse .45s ease-in-out}
-@keyframes lecturaPulse{0%{transform:scale(.98)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
-@media(max-width:700px){.lectura-counter-pro{position:sticky;top:108px;z-index:88;margin:8px 0 10px;padding:12px;border-radius:15px}.lectura-counter-pro .lectura-num{min-width:60px;height:50px;font-size:26px}}
+
+/* ===== CONTADOR GRANDE DE LECTURAS EN CELULAR ===== */
+@media(max-width:700px){
+  #contador_lecturas_box{grid-template-columns:34px 1fr 78px!important;padding:12px!important;margin:8px 0 12px!important;border-radius:14px!important;position:relative!important;z-index:20!important;}
+  #contador_lecturas_box div{line-height:1.15!important;}
+  #contador_lecturas_hoy{font-size:28px!important;}
+}
 
 </style>
 <script src="https://unpkg.com/html5-qrcode.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
@@ -1973,6 +1972,46 @@ input[type="checkbox"]{width:auto!important;min-height:0!important;height:18px!i
 })();
 </script>
 
+
+<script>
+// ===== CONTADOR VISUAL DE LECTURAS GUARDADAS =====
+(function(){
+  function contarFilasDb(){
+    try { return document.querySelectorAll('#tbody_consumos_principal tr.fila-db-consumo').length; }
+    catch(e){ return 0; }
+  }
+  function actualizarContadorLecturas(delta){
+    const c = document.getElementById('contador_lecturas_hoy');
+    if(!c) return;
+    let n = parseInt(c.textContent || '0', 10) || 0;
+    if(typeof delta === 'number') n += delta;
+    else n = Math.max(n, contarFilasDb());
+    c.textContent = n;
+    const box = document.getElementById('contador_lecturas_box');
+    if(box){
+      box.style.transform = 'scale(1.015)';
+      box.style.boxShadow = '0 0 0 4px rgba(34,197,94,.22), 0 14px 32px rgba(22,163,74,.25)';
+      setTimeout(()=>{ box.style.transform=''; box.style.boxShadow='0 10px 24px rgba(22,163,74,.22)'; }, 260);
+    }
+  }
+  window.actualizarContadorLecturas = actualizarContadorLecturas;
+  document.addEventListener('DOMContentLoaded', ()=>actualizarContadorLecturas());
+
+  const oldFetch = window.fetch;
+  window.fetch = async function(){
+    const res = await oldFetch.apply(this, arguments);
+    try{
+      const url = String(arguments[0] || '');
+      if(url.includes('/api/registrar_consumo_auto')){
+        const clone = res.clone();
+        clone.json().then(data=>{ if(data && data.ok) actualizarContadorLecturas(1); }).catch(()=>{});
+      }
+    }catch(e){}
+    return res;
+  };
+})();
+</script>
+
 </body>
 </html>
 """
@@ -2149,6 +2188,8 @@ def dashboard():
     trabajadores = q_one("SELECT COUNT(*) c FROM trabajadores WHERE activo=1")["c"]
 
     rows = q_all(f"SELECT * FROM consumos WHERE {where} ORDER BY fecha DESC,hora DESC,id DESC LIMIT 12", tuple(final_params))
+    total_consumos_fecha = int((q_one("SELECT COUNT(*) AS c FROM consumos WHERE fecha=?", (fecha,)) or {"c": 0})["c"] or 0)
+
     tabla = "".join([
         f"""
         <tr>
@@ -2388,6 +2429,17 @@ def consumos():
       <div id="indicador_masivo_principal" style="margin:8px 0 12px;padding:14px 16px;border-radius:14px;border:2px solid #38bdf8;background:#e0f2fe;color:#075985;font-weight:950;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <span>📦 Registro masivo automático activo: primero coloca RESPONSABLE; cada DNI válido se guardará al instante y aparecerá en CONSUMOS DE LA FECHA.</span>
         <span id="indicador_masivo_contador" style="background:#0d73b8;color:white;border-radius:999px;padding:7px 12px">0 en lote</span>
+      </div>
+      <div id="contador_lecturas_box" style="margin:8px 0 14px;padding:13px 14px;border-radius:16px;border:2px solid #16a34a;background:linear-gradient(135deg,#052e16,#064e3b);color:white;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;box-shadow:0 10px 24px rgba(22,163,74,.22)">
+        <div style="font-size:25px">✅</div>
+        <div>
+          <div style="font-weight:950;font-size:15px">LECTURAS GUARDADAS HOY</div>
+          <div style="font-size:12px;opacity:.88">Cada DNI válido suma aquí y se limpia para el siguiente.</div>
+        </div>
+        <div style="text-align:center;background:#22c55e;color:#052e16;border-radius:16px;padding:8px 14px;min-width:76px;font-weight:950">
+          <div id="contador_lecturas_hoy" style="font-size:26px;line-height:1">{total_consumos_fecha}</div>
+          <div style="font-size:10px">REG.</div>
+        </div>
       </div>
       <form method="post" class="form-grid" id="form_consumo" onsubmit="return validarAntesEnviar(event)">
         <input type="date" name="fecha" value="{fecha}" onchange="window.location='{url_for('consumos')}?fecha=' + this.value" title="Elige una fecha para consultar. Solo hoy permite registrar." max="{hoy_iso()}">
@@ -3097,39 +3149,13 @@ def consumos():
       // ===== AUTO-GUARDADO MASIVO REAL: guarda al detectar DNI válido =====
       let autoGuardandoFix = false;
       let autoGuardadosFix = 0;
-      function ensureLecturaCounterFix(){{
-        let box = document.getElementById('lectura_counter_pro');
-        const form = document.getElementById('form_consumo');
-        if(!box && form){{
-          box = document.createElement('div');
-          box.id = 'lectura_counter_pro';
-          box.className = 'lectura-counter-pro';
-          box.innerHTML = '<div class="lectura-left">📲 Lecturas guardadas automáticamente<div class="lectura-sub">Último DNI: <span id="lectura_ultimo_dni">-</span></div></div><div class="lectura-num" id="lectura_total_num">0</div>';
-          const panel = document.getElementById('auto_guardado_panel');
-          if(panel && panel.parentNode) panel.parentNode.insertBefore(box, panel.nextSibling);
-          else form.insertBefore(box, form.firstChild);
-        }}
-        return box;
-      }}
-      function actualizarLecturaCounterFix(dni){{
-        const box = ensureLecturaCounterFix();
-        const n = document.getElementById('lectura_total_num');
-        const u = document.getElementById('lectura_ultimo_dni');
-        if(n) n.textContent = autoGuardadosFix;
-        if(u) u.textContent = dni || '-';
-        if(box){{
-          box.classList.remove('ok-flash');
-          void box.offsetWidth;
-          box.classList.add('ok-flash');
-        }}
-      }}
       function ensureAutoPanelFix(){{
         let p = document.getElementById('auto_guardado_panel');
         const form = document.getElementById('form_consumo');
         if(!p && form){{
           p = document.createElement('div');
           p.id = 'auto_guardado_panel';
-          p.innerHTML = '<div>✅ Registros automáticos guardados: <span id="auto_guardado_count">0</span></div><div class="mini">Cada lectura válida suma en el indicador y limpia el DNI para continuar.</div>';
+          p.innerHTML = '<div>✅ Registros automáticos guardados: <span id="auto_guardado_count">0</span></div><div class="mini">Cada DNI válido se guarda en CONSUMOS DE LA FECHA y el campo DNI queda limpio para el siguiente.</div>';
           const info = document.getElementById('info_trabajador_consumo');
           if(info && info.parentNode) info.parentNode.insertBefore(p, info.nextSibling);
           else form.insertBefore(p, form.firstChild);
@@ -3174,7 +3200,6 @@ def consumos():
             const c = document.getElementById('auto_guardado_count');
             if(c) c.textContent = autoGuardadosFix;
             if(p) p.style.display = 'block';
-            actualizarLecturaCounterFix(dni);
             if(ind){{ ind.style.display='block'; ind.textContent = data.msg || ('✅ Guardado automático: ' + dni); }}
             try{{ beepOk(); }}catch(e){{}}
             toastFix(data.msg || ('Guardado automático: ' + dni), true);
@@ -3245,7 +3270,7 @@ def consumos():
       }};
 
       document.addEventListener('DOMContentLoaded', function(){{
-        loadLoteFix(); try{{ if(sessionStorage.getItem('limpiar_lote_tras_envio_fix') === '1'){{ localStorage.removeItem(LS_KEY); sessionStorage.removeItem('limpiar_lote_tras_envio_fix'); loteMasivoFix=[]; }} }}catch(ex){{}} ensureIndicatorFix(); ensureAutoPanelFix(); ensureLecturaCounterFix(); const form = document.getElementById('form_consumo'); if(form){{ form.onsubmit = window.validarAntesEnviar; }}
+        loadLoteFix(); try{{ if(sessionStorage.getItem('limpiar_lote_tras_envio_fix') === '1'){{ localStorage.removeItem(LS_KEY); sessionStorage.removeItem('limpiar_lote_tras_envio_fix'); loteMasivoFix=[]; }} }}catch(ex){{}} ensureIndicatorFix(); const form = document.getElementById('form_consumo'); if(form){{ form.onsubmit = window.validarAntesEnviar; }}
         function syncResponsibleLock(){{
           const has = !!responsableFix();
           const inp = document.getElementById('dni_consumo');
@@ -3688,10 +3713,10 @@ def trabajadores():
         rows = q_all("""
             SELECT * FROM trabajadores
             WHERE dni LIKE ? OR nombre LIKE ? OR cargo LIKE ? OR area LIKE ? OR empresa LIKE ?
-            ORDER BY nombre LIMIT 1200
+            ORDER BY nombre
         """, (b, b, b, b, b))
     else:
-        rows = q_all("SELECT * FROM trabajadores ORDER BY nombre LIMIT 1200")
+        rows = q_all("SELECT * FROM trabajadores ORDER BY nombre")
 
     tabla = "".join([
         f"<tr><td>{r['empresa']}</td><td>{r['dni']}</td><td>{r['nombre']}</td><td>{r['cargo']}</td><td>{r['area']}</td><td><span class='badge ok'>Activo</span></td></tr>"
