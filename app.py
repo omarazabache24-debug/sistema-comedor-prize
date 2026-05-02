@@ -2139,12 +2139,16 @@ def consumos():
             </div>
             <span id="lote_count" class="badge ok" style="font-size:15px">0</span>
           </div>
-          <div id="lote_lista" style="margin-top:10px;font-size:13px;color:#25364a;max-height:180px;overflow:auto;background:white;border:1px solid #bbf7d0;border-radius:12px;padding:10px"></div>
+          <div style="margin-top:10px;display:grid;grid-template-columns:70px 130px 1fr 62px;gap:8px;padding:9px 10px;background:#dcfce7;border:1px solid #86efac;border-radius:12px 12px 0 0;font-size:12px;font-weight:950;color:#14532d">
+            <div>#</div><div>DNI</div><div>Trabajador detectado</div><div>Quitar</div>
+          </div>
+          <div id="lote_lista" style="font-size:13px;color:#25364a;max-height:240px;overflow:auto;background:white;border:1px solid #bbf7d0;border-top:0;border-radius:0 0 12px 12px;padding:0"></div>
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
             <button type="button" class="btn-red" style="width:auto;min-height:36px;padding:8px 12px" onclick="limpiarLoteConsumos()">Limpiar lote</button>
           </div>
         </div>
         <textarea id="dni_lote" name="dni_lote" placeholder="DNIs validados para lote" style="display:none;grid-column:1/-1;min-height:90px"></textarea>
+        <textarea id="lote_detalle" name="lote_detalle" style="display:none"></textarea>
         <button id="btn_submit_consumo" {disabled}>REGISTRO DE CONSUMO</button>
         <a class="btn btn-blue" href="{url_for('consumos')}">Actualizar / refrescar</a>
       </form>
@@ -2173,29 +2177,46 @@ def consumos():
       if(!box) return [];
       return (box.value || '').split(/[\s,;|]+/).map(soloDni).filter(x => x.length === 8);
     }}
-    function setLoteArray(arr){{
+    function getLoteDetalle(){{
+      const det = document.getElementById('lote_detalle');
+      if(!det || !det.value) return {{}};
+      try{{return JSON.parse(det.value || '{{}}') || {{}};}}catch(e){{return {{}};}}
+    }}
+    function setLoteDetalle(obj){{
+      const det = document.getElementById('lote_detalle');
+      if(det) det.value = JSON.stringify(obj || {{}});
+      try{{ localStorage.setItem('lote_consumos_detalle_' + new Date().toISOString().slice(0,10), JSON.stringify(obj || {{}})); }}catch(e){{}}
+    }}
+    function setLoteArray(arr, detalle=null){{
       const limpio = [];
       arr.forEach(d => {{ d = soloDni(d); if(d && d.length === 8 && !limpio.includes(d)) limpio.push(d); }});
+      const oldDetalle = detalle || getLoteDetalle();
+      const nuevoDetalle = {{}};
+      limpio.forEach(d => {{ nuevoDetalle[d] = oldDetalle[d] || ''; }});
       const box = document.getElementById('dni_lote');
       const lista = document.getElementById('lote_lista');
       const count = document.getElementById('lote_count');
       if(box) box.value = limpio.join('\n');
-      if(count) count.textContent = limpio.length;
+      setLoteDetalle(nuevoDetalle);
+      if(count) count.textContent = limpio.length + ' DNI';
       if(lista){{
         lista.innerHTML = limpio.length
-          ? limpio.map((d, i) => `<div style="display:grid;grid-template-columns:60px 1fr 44px;gap:8px;align-items:center;padding:8px;border-bottom:1px solid #e8eef5"><b>${{i+1}}.</b><span><b>DNI:</b> ${{d}}<br><small class="muted">Guardado temporalmente, pendiente de REGISTRO DE CONSUMO</small></span><button type="button" onclick="quitarDniLote('${{d}}')" style="min-height:0;width:36px;padding:6px;border-radius:999px;background:#ef4444;box-shadow:none">×</button></div>`).join('')
-          : '<span class="muted">Aún no hay DNIs guardados. Digite o escanee para acumular.</span>';
+          ? limpio.map((d, i) => `<div style="display:grid;grid-template-columns:70px 130px 1fr 62px;gap:8px;align-items:center;padding:9px 10px;border-bottom:1px solid #e8eef5"><b>${{i+1}}</b><b>${{d}}</b><span>${{(nuevoDetalle[d] || 'Trabajador validado')}}</span><button type="button" onclick="quitarDniLote('${{d}}')" style="min-height:0;width:38px;padding:6px;border-radius:999px;background:#ef4444;box-shadow:none">×</button></div>`).join('')
+          : '<div style="padding:12px" class="muted">Aún no hay DNIs guardados. Digite o escanee para acumular antes del clic final.</div>';
       }}
       try{{ localStorage.setItem('lote_consumos_' + new Date().toISOString().slice(0,10), limpio.join('\n')); }}catch(e){{}}
     }}
     function quitarDniLote(dni){{
-      const arr = getLoteArray().filter(x => x !== soloDni(dni));
-      setLoteArray(arr);
+      const d = soloDni(dni);
+      const detalle = getLoteDetalle();
+      delete detalle[d];
+      const arr = getLoteArray().filter(x => x !== d);
+      setLoteArray(arr, detalle);
       avisoMovil('DNI quitado del lote: ' + dni, false);
       setTimeout(()=>document.getElementById('dni_consumo')?.focus(), 100);
     }}
     function limpiarLoteConsumos(){{
-      setLoteArray([]);
+      setLoteArray([], {{}});
       const inp = document.getElementById('dni_consumo');
       const out = document.getElementById('nombre_trabajador');
       if(inp) inp.value='';
@@ -2275,20 +2296,23 @@ def consumos():
       dni = soloDni(dni);
       if(dni.length !== 8) return;
       const arr = getLoteArray();
+      const detalle = getLoteDetalle();
+      if(nombre) detalle[dni] = nombre;
       if(arr.includes(dni)){{
+        setLoteArray(arr, detalle);
         avisoMovil('DNI ya estaba guardado en el lote: ' + dni, false);
       }}else{{
         arr.push(dni);
-        setLoteArray(arr);
+        setLoteArray(arr, detalle);
         beepOk();
-        avisoMovil('DNI guardado en lote temporal: ' + dni + (nombre ? ' - ' + nombre : ''), true);
+        avisoMovil('DNI guardado y visualizado en lote: ' + dni + (nombre ? ' - ' + nombre : ''), true);
       }}
       const inp = document.getElementById('dni_consumo');
       const out = document.getElementById('nombre_trabajador');
       const info = document.getElementById('info_trabajador_consumo');
       if(inp) inp.value = '';
       if(out) out.value = '';
-      if(info){{ info.style.display='block'; info.innerHTML='<b>Lote activo:</b> ' + getLoteArray().length + ' DNI(s) guardados. Presiona <b>REGISTRO DE CONSUMO</b> para registrar todo.'; }}
+      if(info){{ info.style.display='block'; info.innerHTML='<b>Lote activo:</b> ' + getLoteArray().length + ' DNI(s) guardados y visibles en el cuadro temporal. Presiona <b>REGISTRO DE CONSUMO</b> para registrar todo.'; }}
       ultimoDniValidado = '';
       setTimeout(()=>inp?.focus(), 120);
     }}
@@ -2470,6 +2494,8 @@ def consumos():
         const key = 'lote_consumos_' + new Date().toISOString().slice(0,10);
         const guardado = localStorage.getItem(key);
         if(guardado && document.getElementById('dni_lote')) document.getElementById('dni_lote').value = guardado;
+        const detGuardado = localStorage.getItem('lote_consumos_detalle_' + new Date().toISOString().slice(0,10));
+        if(detGuardado && document.getElementById('lote_detalle')) document.getElementById('lote_detalle').value = detGuardado;
       }}catch(e){{}}
       toggleLote();
       setLoteArray(getLoteArray());
@@ -2821,6 +2847,10 @@ def trabajadores():
             return redirect(url_for("trabajadores"))
 
     buscar = clean_text(request.args.get("buscar"))
+    total_activos = q_one("SELECT COUNT(*) AS total FROM trabajadores WHERE activo=1")
+    total_activos = int(total_activos["total"] if total_activos else 0)
+    total_inactivos = q_one("SELECT COUNT(*) AS total FROM trabajadores WHERE activo=0")
+    total_inactivos = int(total_inactivos["total"] if total_inactivos else 0)
     if buscar:
         b = f"%{buscar}%"
         rows = q_all("""
@@ -2837,6 +2867,33 @@ def trabajadores():
     ]) or "<tr><td colspan='6'>Sin trabajadores encontrados.</td></tr>"
 
     html = topbar("Trabajadores", "Base de trabajadores activos para validar DNI") + f"""
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,minmax(180px,1fr))!important">
+      <div class="card kpi-card">
+        <div class="icon-circle ic-green">👥</div>
+        <div>
+          <div class="label">Trabajadores activos</div>
+          <div class="num">{total_activos}</div>
+          <div class="sub">Disponibles para validar DNI</div>
+        </div>
+      </div>
+      <div class="card kpi-card">
+        <div class="icon-circle ic-blue">🔎</div>
+        <div>
+          <div class="label">Resultado mostrado</div>
+          <div class="num">{len(rows)}</div>
+          <div class="sub">Según filtro actual</div>
+        </div>
+      </div>
+      <div class="card kpi-card">
+        <div class="icon-circle ic-orange">⛔</div>
+        <div>
+          <div class="label">Inactivos</div>
+          <div class="num">{total_inactivos}</div>
+          <div class="sub">No validan consumo</div>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <h3 style="margin-top:0">Registro manual</h3>
       <form method="post" class="form-grid" id="form_consumo" onsubmit="return validarAntesEnviar(event)">
