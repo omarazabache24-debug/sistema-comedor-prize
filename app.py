@@ -1468,6 +1468,11 @@ input[type="checkbox"]{width:auto!important;min-height:0!important;height:18px!i
 .responsable-alerta-final{border:2px solid #ef4444!important;background:#fff1f2!important;}
 .lote-dios-panel{margin-top:8px!important;}
 
+/* ===== AUTO-GUARDADO MASIVO REAL ===== */
+.consumo-recien-guardado{background:#ecfdf5!important;box-shadow:inset 5px 0 0 #16a34a}
+#auto_guardado_panel{grid-column:1/-1;border:2px solid #16a34a;border-radius:16px;background:#f0fdf4;padding:12px 14px;margin:8px 0;font-weight:950;color:#064e3b}
+#auto_guardado_panel .mini{font-size:12px;color:#166534;margin-top:3px}
+
 </style>
 <script src="https://unpkg.com/html5-qrcode.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com//library.20.0/umd/index.min.js" crossorigin="anonymous"></script>
@@ -2149,7 +2154,7 @@ def consumos():
     <div class="card">
       <h3 style="margin-top:0">Registrar consumo</h3>
       <div id="indicador_masivo_principal" style="margin:8px 0 12px;padding:14px 16px;border-radius:14px;border:2px solid #38bdf8;background:#e0f2fe;color:#075985;font-weight:950;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <span>📦 Registro masivo automático activo: coloca RESPONSABLE y luego digita/escanea DNI. Cada trabajador aparecerá abajo antes de guardar.</span>
+        <span>📦 Registro masivo automático activo: primero coloca RESPONSABLE; cada DNI válido se guardará al instante y aparecerá en CONSUMOS DE LA FECHA.</span>
         <span id="indicador_masivo_contador" style="background:#0d73b8;color:white;border-radius:999px;padding:7px 12px">0 en lote</span>
       </div>
       <form method="post" class="form-grid" id="form_consumo" onsubmit="return validarAntesEnviar(event)">
@@ -2853,6 +2858,130 @@ def consumos():
         if(enLote){{ const marcados = loteMasivoFix.filter(x => x.checked !== false).map(x => x.dni); if(marcados.length === 0){{ if(e) e.preventDefault(); toastFix('No hay trabajadores marcados para guardar. Escanea/digita y deja check marcado.', false); return false; }} if(!confirm('Se guardarán ' + marcados.length + ' trabajador(es) marcados. ¿Confirmas REGISTRO DE CONSUMO?')){{ if(e) e.preventDefault(); return false; }} const hidden = document.getElementById('dni_lote'); if(hidden) hidden.value = marcados.join('\n'); try{{ sessionStorage.setItem('limpiar_lote_tras_envio_fix', '1'); }}catch(ex){{}} const ind = ensureIndicatorFix(); if(ind){{ ind.style.display='block'; ind.textContent='⏳ Guardando registro masivo: 0 de ' + marcados.length + '...'; }} const btn = document.getElementById('btn_submit_consumo'); if(btn){{ btn.disabled=true; btn.textContent='GUARDANDO MASIVO...'; }} setTimeout(()=>{{ if(ind) ind.textContent='⏳ Enviando y grabando ' + marcados.length + ' trabajador(es) en base de datos...'; }},150); return true; }}
         return true;
       }};
+
+      // ===== AUTO-GUARDADO MASIVO REAL: guarda al detectar DNI válido =====
+      let autoGuardandoFix = false;
+      let autoGuardadosFix = 0;
+      function ensureAutoPanelFix(){{
+        let p = document.getElementById('auto_guardado_panel');
+        const form = document.getElementById('form_consumo');
+        if(!p && form){{
+          p = document.createElement('div');
+          p.id = 'auto_guardado_panel';
+          p.innerHTML = '<div>✅ Registros automáticos guardados: <span id="auto_guardado_count">0</span></div><div class="mini">Cada DNI válido se guarda en CONSUMOS DE LA FECHA y el campo DNI queda limpio para el siguiente.</div>';
+          const info = document.getElementById('info_trabajador_consumo');
+          if(info && info.parentNode) info.parentNode.insertBefore(p, info.nextSibling);
+          else form.insertBefore(p, form.firstChild);
+        }}
+        return p;
+      }}
+      function limpiarDniParaSiguienteFix(){{
+        const inp = document.getElementById('dni_consumo');
+        const out = document.getElementById('nombre_trabajador');
+        const info = document.getElementById('info_trabajador_consumo');
+        if(inp) inp.value = '';
+        if(out) out.value = '';
+        if(info){{ info.style.display='none'; info.innerHTML=''; }}
+        setTimeout(()=>inp?.focus(), 80);
+      }}
+      function prependConsumoGuardadoFix(rowHtml){{
+        const tbody = document.getElementById('tbody_consumos_principal');
+        if(!tbody) return;
+        const sin = document.getElementById('fila_sin_registros');
+        if(sin) sin.remove();
+        tbody.insertAdjacentHTML('afterbegin', rowHtml);
+      }}
+      async function registrarConsumoAutomaticoFix(dni){{
+        if(autoGuardandoFix) return;
+        if(!validarResponsableFix()){{ limpiarDniParaSiguienteFix(); return; }}
+        dni = onlyDni(dni);
+        if(dni.length !== 8) return;
+        autoGuardandoFix = true;
+        const ind = ensureIndicatorFix();
+        if(ind){{ ind.style.display='block'; ind.textContent='⏳ Guardando automáticamente DNI ' + dni + '...'; }}
+        try{{
+          const form = document.getElementById('form_consumo');
+          const fd = new FormData(form || document.createElement('form'));
+          fd.set('dni', dni);
+          fd.set('modo_lote', '0');
+          const r = await fetch('/api/registrar_consumo_auto', {{method:'POST', body:fd, credentials:'same-origin', cache:'no-store'}});
+          const data = await r.json().catch(()=>({{ok:false,msg:'Error leyendo respuesta del servidor'}}));
+          if(data.ok){{
+            prependConsumoGuardadoFix(data.row_html || '');
+            autoGuardadosFix += 1;
+            const p = ensureAutoPanelFix();
+            const c = document.getElementById('auto_guardado_count');
+            if(c) c.textContent = autoGuardadosFix;
+            if(p) p.style.display = 'block';
+            if(ind){{ ind.style.display='block'; ind.textContent = data.msg || ('✅ Guardado automático: ' + dni); }}
+            try{{ beepOk(); }}catch(e){{}}
+            toastFix(data.msg || ('Guardado automático: ' + dni), true);
+            limpiarDniParaSiguienteFix();
+            try{{ loteMasivoFix = []; localStorage.removeItem(LS_KEY); renderLoteFix(); }}catch(e){{}}
+          }}else{{
+            if(ind){{ ind.style.display='block'; ind.textContent = '❌ ' + (data.msg || 'No se pudo guardar'); }}
+            toastFix(data.msg || 'No se pudo guardar el consumo.', false);
+            limpiarDniParaSiguienteFix();
+          }}
+        }}catch(e){{
+          if(ind){{ ind.style.display='block'; ind.textContent='❌ Error de conexión al guardar.'; }}
+          toastFix('Error de conexión al guardar consumo.', false);
+          limpiarDniParaSiguienteFix();
+        }}finally{{
+          setTimeout(()=>{{ autoGuardandoFix=false; }}, 250);
+        }}
+      }}
+      window.buscarTrabajadorConsumo = async function(force=false){{
+        if(!validarResponsableFix()){{
+          limpiarDniParaSiguienteFix();
+          return;
+        }}
+        const inp = document.getElementById('dni_consumo');
+        const out = document.getElementById('nombre_trabajador');
+        if(!inp || !out) return;
+        const dni = onlyDni(inp.value);
+        inp.value = dni;
+        if(dni.length < 8){{ out.value=''; return; }}
+        out.value='Validando DNI...';
+        try{{
+          const d = await validarDniFix(dni);
+          if(d && d.ok){{
+            out.value = d.nombre || '';
+            const info = document.getElementById('info_trabajador_consumo');
+            if(info){{ info.style.display='block'; info.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px"><div><b>Trabajador</b><br>'+(d.nombre||'-')+'</div><div><b>DNI</b><br>'+dni+'</div><div><b>Área</b><br>'+(d.area||'-')+'</div><div><b>Estado</b><br><span class="badge ok">Activo</span></div></div>'; }}
+            await registrarConsumoAutomaticoFix(dni);
+          }}else{{
+            out.value='DNI no encontrado';
+            toastFix('DNI no encontrado: '+dni, false);
+            limpiarDniParaSiguienteFix();
+          }}
+        }}catch(e){{
+          out.value='Error validando DNI';
+          toastFix('Error consultando trabajador.', false);
+          limpiarDniParaSiguienteFix();
+        }}
+      }};
+      window.dniInputHandler = function(){{
+        const inp = document.getElementById('dni_consumo'); if(!inp) return;
+        inp.value = onlyDni(inp.value);
+        clearTimeout(window.__fixDniTimer);
+        if(inp.value.length > 0 && !responsableFix()){{
+          const out = document.getElementById('nombre_trabajador');
+          if(out) out.value='PRIMERO COLOCA RESPONSABLE';
+          inp.value='';
+          validarResponsableFix();
+          return;
+        }}
+        if(inp.value.length === 8){{ window.__fixDniTimer = setTimeout(()=>window.buscarTrabajadorConsumo(false), 80); }}
+      }};
+      window.procesarDniQR = async function(texto){{
+        if(!validarResponsableFix()){{ limpiarDniParaSiguienteFix(); return; }}
+        const dni = onlyDni(texto);
+        if(dni.length !== 8){{ toastFix('QR/barras inválido: no contiene DNI de 8 dígitos.', false); return; }}
+        const inp = document.getElementById('dni_consumo'); if(inp) inp.value=dni;
+        await window.buscarTrabajadorConsumo(true);
+      }};
+
       document.addEventListener('DOMContentLoaded', function(){{
         loadLoteFix(); try{{ if(sessionStorage.getItem('limpiar_lote_tras_envio_fix') === '1'){{ localStorage.removeItem(LS_KEY); sessionStorage.removeItem('limpiar_lote_tras_envio_fix'); loteMasivoFix=[]; }} }}catch(ex){{}} ensureIndicatorFix(); const form = document.getElementById('form_consumo'); if(form){{ form.onsubmit = window.validarAntesEnviar; }}
         function syncResponsibleLock(){{
@@ -2903,6 +3032,64 @@ def consumos():
     """
     return render_page(html, "consumos")
 
+
+
+@app.route("/api/registrar_consumo_auto", methods=["POST"])
+@login_required
+@roles_required("admin", "rrhh", "comedor")
+def api_registrar_consumo_auto():
+    """Registro automático por DNI para modo masivo."""
+    fecha = request.form.get("fecha") or hoy_iso()
+    if fecha != hoy_iso():
+        return jsonify({"ok": False, "msg": "Solo se puede registrar consumo en la fecha actual de hoy."}), 400
+    if dia_cerrado(fecha):
+        return jsonify({"ok": False, "msg": "El día ya está cerrado. No se puede registrar consumos."}), 400
+    bloqueado, msg_bloq = registro_bloqueado()
+    if bloqueado and session.get("role") != "admin":
+        return jsonify({"ok": False, "msg": msg_bloq}), 400
+    responsable = clean_text(request.form.get("responsable")).upper()
+    if not responsable:
+        return jsonify({"ok": False, "msg": "Primero registra el RESPONSABLE antes de detectar DNI."}), 400
+    dni = clean_dni(request.form.get("dni"))
+    if len(dni) != 8:
+        return jsonify({"ok": False, "msg": "DNI inválido. Debe tener 8 dígitos."}), 400
+    trabajador = q_one("SELECT * FROM trabajadores WHERE dni=? AND activo=1", (dni,))
+    if not trabajador:
+        return jsonify({"ok": False, "msg": f"DNI no encontrado o trabajador inactivo: {dni}"}), 404
+    tipo = request.form.get("tipo", "Almuerzo")
+    if tipo not in ["Almuerzo", "Dieta"]:
+        tipo = "Almuerzo"
+    comedor = request.form.get("comedor", "Comedor 01")
+    fundo = request.form.get("fundo", "Kawsay Allpa")
+    cantidad = int(float(request.form.get("cantidad") or 1))
+    precio = float(request.form.get("precio_unitario") or 10)
+    total = cantidad * precio
+    obs = clean_text(request.form.get("observacion"))
+    es_adicional = 1 if request.form.get("adicional") == "1" and session.get("role") == "admin" else 0
+    if not es_adicional and q_one("SELECT id,hora FROM consumos WHERE fecha=? AND dni=? AND COALESCE(adicional,0)=0", (fecha, dni)):
+        return jsonify({"ok": False, "msg": f"NO DUPLICADO: el DNI {dni} ya tiene consumo registrado hoy."}), 409
+    hora = hora_now()
+    try:
+        new_id = q_exec("""
+            INSERT INTO consumos(fecha,hora,dni,trabajador,empresa,area,tipo,cantidad,precio_unitario,total,observacion,comedor,fundo,responsable,adicional,estado,creado_por)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (fecha, hora, dni, trabajador["nombre"], trabajador["empresa"], trabajador["area"], tipo, cantidad, precio, total, obs, comedor, fundo, responsable, es_adicional, "PENDIENTE", session["user"]))
+    except Exception:
+        return jsonify({"ok": False, "msg": f"NO DUPLICADO: el DNI {dni} ya tiene consumo registrado para el día {fecha_peru_txt(fecha)}."}), 409
+    if new_id:
+        row = q_one("SELECT * FROM consumos WHERE id=?", (new_id,))
+    else:
+        row = q_one("SELECT * FROM consumos WHERE fecha=? AND dni=? ORDER BY id DESC", (fecha, dni))
+    html = f"""
+    <tr class="fila-db-consumo consumo-recien-guardado">
+      <td>✅</td><td>{row['fecha']}</td><td>{row['hora']}</td><td>{row['dni']}</td><td>{row['trabajador']}</td><td>{row['area']}</td>
+      <td>{row['tipo']}{' + Adic.' if row['adicional'] else ''}</td><td>{row['comedor']}</td><td>{row['fundo']}</td><td>{row['responsable'] or '-'}</td>
+      <td>{row['cantidad']}</td><td>{money(row['precio_unitario'])}</td><td>{money(row['total'])}</td><td><span class="badge warn">{row['estado']}</span></td>
+      <td><form method="post" action="{url_for('quitar_consumo')}" style="display:flex;gap:6px;align-items:center"><input type="hidden" name="id" value="{row['id']}"><input name="clave" placeholder="Clave" style="width:85px;padding:8px"><button class="btn-red" style="padding:8px 10px">Quitar</button></form></td>
+    </tr>
+    """
+    audit_event("REGISTRO_CONSUMO_AUTO", "consumos", row["id"], f"DNI {dni} - responsable {responsable}")
+    return jsonify({"ok": True, "msg": f"✅ Guardado automático: {dni} - {trabajador['nombre']}", "row_html": html, "dni": dni, "nombre": trabajador["nombre"], "area": trabajador["area"], "id": row["id"]})
 
 
 @app.route("/quitar_consumo", methods=["POST"])
