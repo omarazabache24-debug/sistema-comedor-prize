@@ -2746,17 +2746,39 @@ def consumos():
         let item = loteMasivoFix.find(x => x.dni === dni);
         if(item){{ item.checked = true; item.nombre = nombre || item.nombre; item.area = area || item.area; toastFix('DNI ya estaba en lote, se mantiene marcado: ' + dni, false); }}
         else{{ loteMasivoFix.push({{dni, nombre:nombre || 'Trabajador validado', area:area || '', checked:true}}); toastFix('Guardado temporal en lote: ' + dni + (nombre ? ' - ' + nombre : ''), true); }}
+        const indAdd = ensureIndicatorFix(); if(indAdd){{ indAdd.style.display='block'; indAdd.textContent='✅ Guardado temporal en registro masivo: ' + checkedCountFix() + ' marcado(s) / ' + loteMasivoFix.length + ' detectado(s).'; }}
         renderLoteFix(); const inp = document.getElementById('dni_consumo'); const out = document.getElementById('nombre_trabajador'); if(inp) inp.value=''; if(out) out.value=''; setTimeout(()=>inp?.focus(),100); return true;
       }};
       async function validarDniFix(dni){{ const r = await fetch('/api/trabajador/' + encodeURIComponent(dni) + '?_=' + Date.now(), {{cache:'no-store', credentials:'same-origin'}}); return await r.json(); }}
       window.buscarTrabajadorConsumo = async function(force=false){{
-        const enLote = document.getElementById('modo_lote')?.checked; if(enLote && !validarResponsableFix()) return;
+        const enLote = document.getElementById('modo_lote')?.checked;
+        if(!validarResponsableFix()){{
+          const inp0 = document.getElementById('dni_consumo');
+          const out0 = document.getElementById('nombre_trabajador');
+          const info0 = document.getElementById('info_trabajador_consumo');
+          if(inp0) inp0.value='';
+          if(out0) out0.value='';
+          if(info0){{ info0.style.display='none'; info0.innerHTML=''; }}
+          return;
+        }}
         const inp = document.getElementById('dni_consumo'); const out = document.getElementById('nombre_trabajador'); if(!inp || !out) return;
         const dni = onlyDni(inp.value); inp.value = dni; if(dni.length < 8){{ out.value=''; return; }}
         out.value='Validando DNI...';
         try{{ const d = await validarDniFix(dni); if(d && d.ok){{ out.value = d.nombre || ''; const info = document.getElementById('info_trabajador_consumo'); if(info){{ info.style.display='block'; info.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px"><div><b>Trabajador</b><br>'+(d.nombre||'-')+'</div><div><b>DNI</b><br>'+dni+'</div><div><b>Área</b><br>'+(d.area||'-')+'</div><div><b>Estado</b><br><span class="badge ok">Activo</span></div></div>'; }} if(enLote) window.agregarDniLote(dni, d.nombre || '', d.area || ''); else {{ try{{ beepOk(); }}catch(e){{}} }} }} else {{ out.value='DNI no encontrado'; toastFix('DNI no encontrado: '+dni, false); }} }}catch(e){{ out.value='Error validando DNI'; toastFix('Error consultando trabajador.', false); }}
       }};
-      window.dniInputHandler = function(){{ const inp = document.getElementById('dni_consumo'); if(!inp) return; inp.value = onlyDni(inp.value); clearTimeout(window.__fixDniTimer); if(inp.value.length === 8){{ window.__fixDniTimer = setTimeout(()=>window.buscarTrabajadorConsumo(false), 60); }} }};
+      window.dniInputHandler = function(){{
+        const inp = document.getElementById('dni_consumo'); if(!inp) return;
+        inp.value = onlyDni(inp.value);
+        clearTimeout(window.__fixDniTimer);
+        if(inp.value.length > 0 && !responsableFix()){{
+          const out = document.getElementById('nombre_trabajador');
+          if(out) out.value='PRIMERO COLOCA RESPONSABLE';
+          inp.value='';
+          validarResponsableFix();
+          return;
+        }}
+        if(inp.value.length === 8){{ window.__fixDniTimer = setTimeout(()=>window.buscarTrabajadorConsumo(false), 60); }}
+      }};
       window.procesarDniQR = async function(texto){{ if(!validarResponsableFix()) return; const dni = onlyDni(texto); if(dni.length !== 8){{ toastFix('QR/barras inválido: no contiene DNI de 8 dígitos.', false); return; }} const inp = document.getElementById('dni_consumo'); if(inp) inp.value=dni; await window.buscarTrabajadorConsumo(true); }};
       const oldAbrir = window.abrirScannerQR; window.abrirScannerQR = function(){{ if(!validarResponsableFix()) return false; return oldAbrir ? oldAbrir() : false; }};
       window.agregarActualAlLote = async function(){{ if(!validarResponsableFix()) return; await window.buscarTrabajadorConsumo(true); }};
@@ -2767,7 +2789,25 @@ def consumos():
       }};
       document.addEventListener('DOMContentLoaded', function(){{
         loadLoteFix(); try{{ if(sessionStorage.getItem('limpiar_lote_tras_envio_fix') === '1'){{ localStorage.removeItem(LS_KEY); sessionStorage.removeItem('limpiar_lote_tras_envio_fix'); loteMasivoFix=[]; }} }}catch(ex){{}} ensureIndicatorFix(); const form = document.getElementById('form_consumo'); if(form){{ form.onsubmit = window.validarAntesEnviar; }}
-        const r = document.querySelector('#form_consumo [name="responsable"]'); if(r){{ r.addEventListener('input', function(){{ this.value=this.value.toUpperCase(); renderTablaPreviewFix(); }}); }}
+        function syncResponsibleLock(){{
+          const has = !!responsableFix();
+          const inp = document.getElementById('dni_consumo');
+          const b1 = document.querySelector('button[onclick="buscarTrabajadorConsumo(true)"]');
+          const b2 = document.getElementById('btn_qr');
+          const chk0 = document.getElementById('modo_lote');
+          if(inp){{ inp.placeholder = has ? 'Digite DNI o escanee QR/barras' : 'PRIMERO COLOCA RESPONSABLE'; }}
+          if(b1){{ b1.title = has ? '' : 'Primero coloca RESPONSABLE'; }}
+          if(b2){{ b2.title = has ? '' : 'Primero coloca RESPONSABLE'; }}
+          if(!has){{
+            if(inp) inp.value='';
+            const out=document.getElementById('nombre_trabajador'); if(out) out.value='';
+            const info=document.getElementById('info_trabajador_consumo'); if(info){{info.style.display='none'; info.innerHTML='';}}
+            if(chk0 && chk0.checked){{ chk0.checked=false; }}
+          }}
+          renderLoteFix();
+        }}
+        setTimeout(syncResponsibleLock, 80);
+        const r = document.querySelector('#form_consumo [name="responsable"]'); if(r){{ r.addEventListener('input', function(){{ this.value=this.value.toUpperCase(); syncResponsibleLock(); renderTablaPreviewFix(); }}); }}
         const chk = document.getElementById('modo_lote'); if(chk){{ chk.addEventListener('change', function(){{ if(this.checked && !validarResponsableFix()){{ this.checked=false; }} renderLoteFix(); }}); }}
         ['tipo','comedor','fundo','cantidad','precio_unitario'].forEach(n => {{ const el=document.querySelector(`#form_consumo [name="${{n}}"]`); if(el) el.addEventListener('change', renderTablaPreviewFix); }});
         renderLoteFix();
