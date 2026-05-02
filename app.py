@@ -44,12 +44,16 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # CONFIGURACIÓN
 # =========================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Carpeta persistente: en Render usa /data si existe o define PERSIST_DIR=/data.
+# Esto evita que usuarios/consumos se pierdan cuando el servicio duerme o reinicia.
+PERSIST_DIR = os.getenv("PERSIST_DIR", "/data" if os.path.isdir("/data") else BASE_DIR)
+os.makedirs(PERSIST_DIR, exist_ok=True)
 STATIC_DIR = os.path.join(BASE_DIR, "static")
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
-REPORT_DIR = os.path.join(BASE_DIR, "reportes_cierre")
-CONCESIONARIA_DIR = os.path.join(BASE_DIR, "consumos_concesionaria")
-ENTREGAS_DIR = os.path.join(BASE_DIR, "reportes_entrega")
-DB_PATH = os.path.join(BASE_DIR, "comedor_prize.db")
+UPLOAD_DIR = os.path.join(PERSIST_DIR, "uploads")
+REPORT_DIR = os.path.join(PERSIST_DIR, "reportes_cierre")
+CONCESIONARIA_DIR = os.path.join(PERSIST_DIR, "consumos_concesionaria")
+ENTREGAS_DIR = os.path.join(PERSIST_DIR, "reportes_entrega")
+DB_PATH = os.path.join(PERSIST_DIR, "comedor_prize.db")
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 USE_POSTGRES = bool(DATABASE_URL)
 APP_TZ = ZoneInfo(os.getenv("APP_TIMEZONE", "America/Lima"))
@@ -1472,6 +1476,59 @@ input[type="checkbox"]{width:auto!important;min-height:0!important;height:18px!i
 .consumo-recien-guardado{background:#ecfdf5!important;box-shadow:inset 5px 0 0 #16a34a}
 #auto_guardado_panel{grid-column:1/-1;border:2px solid #16a34a;border-radius:16px;background:#f0fdf4;padding:12px 14px;margin:8px 0;font-weight:950;color:#064e3b}
 #auto_guardado_panel .mini{font-size:12px;color:#166534;margin-top:3px}
+
+
+/* ===== CELULAR TIPO APP ASISTENCIA ===== */
+@media(max-width:700px){
+  html,body{height:auto!important;overflow:auto!important;background:#f2f4f6!important;}
+  .app-shell{display:block!important;height:auto!important;min-height:100vh!important;overflow:visible!important;background:#f2f4f6!important;}
+  .hero{margin-left:0!important;width:100%!important;min-height:58px!important;padding:10px 12px!important;background:#0aa866!important;position:sticky!important;top:0!important;z-index:80!important;box-shadow:0 3px 12px rgba(0,0,0,.18)!important;}
+  .hero h1{font-size:20px!important;line-height:1.1!important;margin:0!important;color:#fff!important;text-align:left!important;}
+  .hero h1:before{content:'← ';font-weight:900;margin-right:6px;}
+  .hero p{display:none!important;}
+  .main-layout{display:block!important;margin-left:0!important;width:100%!important;height:auto!important;overflow:visible!important;}
+  .fixed-prize-sidebar{position:sticky!important;top:58px!important;width:100%!important;height:auto!important;padding:6px!important;background:#063047!important;z-index:70!important;box-shadow:0 3px 10px rgba(0,0,0,.12)!important;}
+  .side-logo-pro,.side-user-card,.side-slogan-card{display:none!important;}
+  .nav-pro{display:flex!important;gap:6px!important;overflow-x:auto!important;padding:0!important;scrollbar-width:none!important;}
+  .nav-pro a{flex:0 0 auto!important;min-height:36px!important;margin:0!important;padding:8px 10px!important;border-radius:999px!important;font-size:11px!important;background:rgba(255,255,255,.08)!important;}
+  .nav-pro a.on{background:#0aa866!important;}
+  .nav-ico{font-size:12px!important;width:auto!important;flex:0 0 auto!important;}
+  .nav-pro .pill{display:none!important;}
+  .content{height:auto!important;overflow:visible!important;padding:10px!important;background:#f2f4f6!important;}
+  .topbar{display:block!important;margin-bottom:8px!important;min-height:0!important;}
+  .topbar h2{font-size:18px!important;margin-bottom:2px!important;color:#1f2937!important;}
+  .user-chip{display:none!important;}
+  .card{border-radius:14px!important;padding:12px!important;margin-bottom:10px!important;box-shadow:0 2px 10px rgba(0,0,0,.08)!important;border:0!important;}
+  .form-grid,.form-grid.two,.filter-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:9px!important;}
+  .form-grid > *, .filter-grid > *{min-width:0!important;}
+  input,select,textarea{min-height:40px!important;border-radius:6px!important;border:0!important;border-bottom:2px solid #c7c7c7!important;background:#f7f7f7!important;font-size:13px!important;padding:8px!important;}
+  button,.btn{min-height:42px!important;border-radius:8px!important;font-size:13px!important;padding:9px 10px!important;}
+  #dni_consumo,#nombre_trabajador,.worker-name-field{grid-column:1/-1!important;min-width:0!important;width:100%!important;}
+  #info_trabajador_consumo{grid-column:1/-1!important;border-radius:12px!important;padding:10px!important;}
+  .label-lote-final{grid-column:1/-1!important;min-height:42px!important;}
+  .table-wrap{border:0!important;max-height:none!important;overflow:visible!important;}
+  #tabla_consumos_principal{min-width:0!important;width:100%!important;border-collapse:separate!important;border-spacing:0 8px!important;}
+  #tabla_consumos_principal thead{display:none!important;}
+  #tbody_consumos_principal tr{display:block!important;background:#fff!important;border-radius:12px!important;margin:8px 0!important;padding:9px!important;box-shadow:0 2px 9px rgba(0,0,0,.08)!important;}
+  #tbody_consumos_principal td{display:grid!important;grid-template-columns:92px 1fr!important;gap:6px!important;border:0!important;padding:4px 2px!important;white-space:normal!important;font-size:12px!important;}
+  #tbody_consumos_principal td:nth-child(1)::before{content:'Sel.';font-weight:900;color:#777;}
+  #tbody_consumos_principal td:nth-child(2)::before{content:'Fecha';font-weight:900;color:#777;}
+  #tbody_consumos_principal td:nth-child(3)::before{content:'Hora';font-weight:900;color:#777;}
+  #tbody_consumos_principal td:nth-child(4)::before{content:'DNI';font-weight:900;color:#777;}
+  #tbody_consumos_principal td:nth-child(5)::before{content:'Nombre';font-weight:900;color:#777;}
+  #tbody_consumos_principal td:nth-child(6)::before{content:'Área';font-weight:900;color:#777;}
+  #tbody_consumos_principal td:nth-child(7)::before{content:'Tipo';font-weight:900;color:#777;}
+  #tbody_consumos_principal td:nth-child(8)::before{content:'Comedor';font-weight:900;color:#777;}
+  #tbody_consumos_principal td:nth-child(9)::before{content:'Fundo';font-weight:900;color:#777;}
+  #tbody_consumos_principal td:nth-child(10)::before{content:'Resp.';font-weight:900;color:#777;}
+  #tbody_consumos_principal td:nth-child(11)::before{content:'Cant.';font-weight:900;color:#777;}
+  #tbody_consumos_principal td:nth-child(12)::before{content:'P. Unit.';font-weight:900;color:#777;}
+  #tbody_consumos_principal td:nth-child(13)::before{content:'Total';font-weight:900;color:#777;}
+  #tbody_consumos_principal td:nth-child(14)::before{content:'Estado';font-weight:900;color:#777;}
+  #tbody_consumos_principal td:nth-child(15)::before{content:'Quitar';font-weight:900;color:#777;}
+  #fila_sin_registros td{display:block!important;}
+  #fila_sin_registros td::before{content:''!important;}
+}
 
 </style>
 <script src="https://unpkg.com/html5-qrcode.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
@@ -3073,7 +3130,7 @@ def consumos():
     <div class="card">
       <div class="table-head">
         <h3>Consumos de la fecha {fecha_peru_txt(fecha)}</h3>
-        <a class="btn btn-blue" href="{url_for('exportar_consumos')}">Exportar Excel</a>
+        <a class="btn btn-blue" href="{url_for('exportar_consumos', fecha=fecha)}">Exportar Excel</a>
       </div>
       <div class="table-wrap">
         <table id="tabla_consumos_principal">
@@ -3763,7 +3820,7 @@ def configuracion():
     html = topbar("Configuración", "Bloqueo por horario, clave para quitar y usuarios") + f"""
     <div class="card">
       <h3 style="margin-top:0">Bloqueo de registro por horario</h3>
-      <form method="post" class="form-grid" id="form_consumo" onsubmit="return validarAntesEnviar(event)">
+      <form method="post" class="form-grid" id="form_configuracion">
         <label style="font-weight:900"><input type="checkbox" name="bloqueo_activo" {'checked' if cfg_get('bloqueo_activo','0')=='1' else ''}> Activar bloqueo para usuarios</label>
         <input type="time" name="hora_inicio" value="{cfg_get('hora_inicio','00:00')}">
         <input type="time" name="hora_fin" value="{cfg_get('hora_fin','23:59')}">
@@ -3837,7 +3894,7 @@ def usuarios_admin():
     html = topbar("Crear usuarios y claves", "Solo administrador") + f"""
     <div class="card">
       <h3 style="margin-top:0">Crear / actualizar usuario</h3>
-      <form method="post" class="form-grid" id="form_consumo" onsubmit="return validarAntesEnviar(event)">
+      <form method="post" class="form-grid" id="form_usuarios_admin">
         <input name="username" placeholder="Usuario" required>
         <input name="password" placeholder="Clave" required>
         <select name="role">
@@ -3958,12 +4015,15 @@ def plantilla_trabajadores():
 @app.route("/exportar_consumos")
 @login_required
 def exportar_consumos():
-    rows = q_all("SELECT * FROM consumos ORDER BY fecha DESC,hora DESC")
+    # Exporta SOLO la data de un día. Por defecto, el día actual.
+    fecha = request.args.get("fecha") or request.args.get("fecha_inicio") or hoy_iso()
+    fecha = clean_text(fecha) or hoy_iso()
+    rows = q_all("SELECT * FROM consumos WHERE fecha=? ORDER BY hora DESC,id DESC", (fecha,))
     df = pd.DataFrame([dict(r) for r in rows])
     output = BytesIO()
     df.to_excel(output, index=False)
     output.seek(0)
-    return send_file(output, as_attachment=True, download_name="consumos_comedor_prize.xlsx",
+    return send_file(output, as_attachment=True, download_name=f"consumos_comedor_prize_{fecha}.xlsx",
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
