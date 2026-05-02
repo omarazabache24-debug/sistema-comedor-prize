@@ -70,12 +70,31 @@ app.secret_key = os.getenv("SECRET_KEY", "prize-comedor-pro-2026")
 
 @app.errorhandler(500)
 def internal_error(e):
+    """Evita bucles de redirección cuando una ruta falla en Render.
+    Antes se hacía redirect al referrer/dashboard y Chrome terminaba en ERR_TOO_MANY_REDIRECTS.
+    Ahora se muestra una pantalla segura con botones para limpiar sesión o volver a iniciar.
+    """
+    app.logger.exception("Error interno controlado: %s", e)
     try:
-        app.logger.exception("Error interno controlado: %s", e)
-        flash("Se detectó un error interno controlado. El sistema no perdió información. Vuelve a intentar o carga nuevamente el archivo.", "error")
-        return redirect(request.referrer or url_for("dashboard"))
+        html = """
+        <div class="login-page">
+          <div class="login-card" style="max-width:520px">
+            <div class="login-inner">
+              <div class="logo-word">Priz<span class="e">e<span class="leaf"></span></span></div>
+              <h2 class="login-title">Sistema Comedor PRIZE</h2>
+              <p class="login-subtitle" style="color:#991b1b;font-weight:900">Se detectó un error interno controlado.</p>
+              <p style="font-size:13px;color:#cbd5e1;line-height:1.45">No se perdió información. Se corrigió para no generar redirecciones infinitas.</p>
+              <div style="display:grid;gap:10px;margin-top:18px">
+                <a class="btn btn-blue" href="/logout">Limpiar sesión / volver a ingresar</a>
+                <a class="btn" href="/consumos">Ir a Consumos</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        """
+        return render_template_string(BASE_HTML, content=html), 500
     except Exception:
-        return "Error interno controlado. Vuelve al menu principal e intenta nuevamente.", 500
+        return "Error interno controlado. Usa /logout para limpiar sesión y vuelve a ingresar.", 500
 
 
 # =========================
@@ -2236,7 +2255,7 @@ def dashboard():
     trabajadores = q_one("SELECT COUNT(*) c FROM trabajadores WHERE activo=1")["c"]
 
     rows = q_all(f"SELECT * FROM consumos WHERE {where} ORDER BY fecha DESC,hora DESC,id DESC LIMIT 12", tuple(final_params))
-    total_consumos_fecha = int((q_one("SELECT COUNT(*) AS c FROM consumos WHERE fecha=?", (fecha,)) or {"c": 0})["c"] or 0)
+    total_consumos_fecha = int((q_one("SELECT COUNT(*) AS c FROM consumos WHERE fecha=?", (hoy_iso(),)) or {"c": 0})["c"] or 0)
 
     tabla = "".join([
         f"""
