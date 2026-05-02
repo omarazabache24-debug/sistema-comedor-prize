@@ -72,7 +72,7 @@ app.secret_key = os.getenv("SECRET_KEY", "prize-comedor-pro-2026")
 def internal_error(e):
     try:
         app.logger.exception("Error interno controlado: %s", e)
-        flash("Se detecto un error interno. Revisa que el Excel tenga columnas validas: EMPRESA, DNI, NOMBRE, CARGO y AREA. El sistema no perdio informacion.", "error")
+        flash("Se detectó un error interno controlado. El sistema no perdió información. Vuelve a intentar o carga nuevamente el archivo.", "error")
         return redirect(request.referrer or url_for("dashboard"))
     except Exception:
         return "Error interno controlado. Vuelve al menu principal e intenta nuevamente.", 500
@@ -490,17 +490,29 @@ def normalize_columns(cols):
     return out
 
 def col_value(row, *names):
+    """Obtiene valores aunque el Excel venga con nombres de columnas distintos.
+    Se aceptan reportes de consumo, plantillas y bases exportadas desde otros sistemas.
+    """
     aliases = {
-        "DNI": ["DNI", "DOCUMENTO", "DOCUMENTO_IDENTIDAD", "NUMERO_DOCUMENTO", "NUMERO_DE_DOCUMENTO", "NRO_DOCUMENTO", "NRO_DNI"],
-        "NOMBRE": ["NOMBRE", "NOMBRES", "APELLIDOS_Y_NOMBRES", "APELLIDOS_NOMBRES", "APELLIDOS_Y_NOMBRE", "NOMBRE_COMPLETO", "TRABAJADOR", "COLABORADOR", "APELLIDOS"],
-        "EMPRESA": ["EMPRESA", "RAZON_SOCIAL", "COMPANIA"],
-        "CARGO": ["CARGO", "PUESTO", "OCUPACION"],
-        "AREA": ["AREA", "AREA_TRABAJO", "SEDE", "FUNDO"]
+        "DNI": [
+            "DNI", "DOCUMENTO", "DOCUMENTO_IDENTIDAD", "NUMERO_DOCUMENTO",
+            "NUMERO_DE_DOCUMENTO", "NRO_DOCUMENTO", "NRO_DNI", "DOC", "CEDULA",
+            "IDENTIFICACION", "NUM_DOC", "DOCUMENTO_NACIONAL_DE_IDENTIDAD"
+        ],
+        "NOMBRE": [
+            "NOMBRE", "NOMBRES", "APELLIDOS_Y_NOMBRES", "APELLIDOS_NOMBRES",
+            "APELLIDOS_Y_NOMBRE", "NOMBRE_COMPLETO", "TRABAJADOR", "COLABORADOR",
+            "APELLIDOS", "PERSONAL", "EMPLEADO", "NOMBRE_ACTIVIDAD", "NOMBRE__ACTIVIDAD_",
+            "NOMBRE_Y_APELLIDOS", "APELLIDOS_Y_NOMBRES_COMPLETOS"
+        ],
+        "EMPRESA": ["EMPRESA", "RAZON_SOCIAL", "COMPANIA", "CIA", "ORGANIZACION"],
+        "CARGO": ["CARGO", "PUESTO", "OCUPACION", "FUNCION", "LABOR", "ACTIVIDAD"],
+        "AREA": ["AREA", "AREA_TRABAJO", "SEDE", "FUNDO", "UNIDAD", "DEPARTAMENTO", "CENTRO_COSTO"],
     }
     for name in names:
         for key in aliases.get(name, [name]):
             try:
-                val = row.get(key)
+                val = row.get(key, "")
             except Exception:
                 val = ""
             if clean_text(val):
@@ -508,65 +520,101 @@ def col_value(row, *names):
     return ""
 
 
+def _normalizar_fila_trabajador(row):
+    dni = clean_dni(col_value(row, "DNI"))
+    nombre = clean_text(col_value(row, "NOMBRE")).upper()
+    if len(dni) != 8 or not nombre:
+        return None
+    return {
+        "empresa": (clean_text(col_value(row, "EMPRESA")) or "PRIZE").upper(),
+        "dni": dni,
+        "nombre": nombre,
+        "cargo": clean_text(col_value(row, "CARGO")).upper(),
+        "area": clean_text(col_value(row, "AREA")).upper(),
+    }
+
+
+def _buscar_cabecera_excel(rows_preview):
+    """Detecta la fila de cabecera aunque el Excel tenga títulos arriba."""
+    mejor_idx = 0
+    mejor_score = -1
+    for idx, row in enumerate(rows_preview[:25]):
+        cols = normalize_columns(row)
+        joined = "|".join(cols)
+        score = 0
+        if any(x in joined for x in ["DNI", "DOCUMENTO", "NRO_DNI", "NUMERO_DOCUMENTO"]):
+            score += 3
+        if any(x in joined for x in ["NOMBRE", "TRABAJADOR", "COLABORADOR", "APELLIDOS"]):
+            score += 3
+        if "EMPRESA" in joined:
+            score += 1
+        if "AREA" in joined or "FUNDO" in joined:
+            score += 1
+        if score > mejor_score:
+            mejor_idx = idx
+            mejor_score = score
+    return mejor_idx if mejor_score >= 3 else 0
+
+
 def leer_trabajadores_excel_stream(file_storage):
     """Lee TODO el Excel de trabajadores.
-    - .xlsx: procesa TODAS las hojas visibles del libro con openpyxl read_only.
-    - .xls/.xlsx alternativo: procesa TODAS las hojas con pandas sheet_name=None.
+    - Lee todas las hojas.
+    - Detecta cabeceras aunque no estén en la primera fila.
+    - Acepta columnas de reportes: DNI, TRABAJADOR, EMPRESA, AREA.
+    - No exige CARGO ni AREA para no perder trabajadores válidos.
     Devuelve: registros(dict por DNI), total_filas, omitidos.
     """
     filename = (file_storage.filename or "").lower()
     registros = {}
     omitidos = 0
     total = 0
-
-    def procesar_fila(r):
-        nonlocal omitidos
-        dni = clean_dni(col_value(r, "DNI"))
-        nombre = clean_text(col_value(r, "NOMBRE")).upper()
-        if len(dni) != 8 or not nombre:
-            omitidos += 1
-            return
-        registros[dni] = {
-            "empresa": (clean_text(col_value(r, "EMPRESA")) or "PRIZE").upper(),
-            "dni": dni,
-            "nombre": nombre,
-            "cargo": clean_text(col_value(r, "CARGO")).upper(),
-            "area": clean_text(col_value(r, "AREA")).upper(),
-        }
-
     file_storage.stream.seek(0)
+
     if filename.endswith(".xlsx"):
         wb = load_workbook(file_storage.stream, read_only=True, data_only=True)
         try:
-            # Antes solo leía la hoja activa. Ahora recorre TODAS las hojas del Excel.
             for ws in wb.worksheets:
-                rows = ws.iter_rows(values_only=True)
-                try:
-                    header = next(rows)
-                except StopIteration:
+                all_rows = list(ws.iter_rows(values_only=True))
+                if not all_rows:
                     continue
-                cols = normalize_columns(header)
-                if not any(c in ("DNI", "DOCUMENTO", "DOCUMENTO_IDENTIDAD", "NUMERO_DOCUMENTO", "NRO_DOCUMENTO", "NOMBRE", "TRABAJADOR") for c in cols):
-                    continue
-                for values in rows:
+                header_idx = _buscar_cabecera_excel(all_rows[:25])
+                cols = normalize_columns(all_rows[header_idx])
+                for values in all_rows[header_idx + 1:]:
                     if not values or not any(clean_text(v) for v in values):
                         continue
                     total += 1
-                    procesar_fila(dict(zip(cols, values)))
+                    r = dict(zip(cols, values))
+                    item = _normalizar_fila_trabajador(r)
+                    if not item:
+                        omitidos += 1
+                        continue
+                    registros[item["dni"]] = item
         finally:
             wb.close()
         return registros, total, omitidos
 
-    # Respaldo para .xls y otros Excel: lee todas las hojas.
+    # Para .xls u otros casos: intentar con pandas si el ambiente tiene motor disponible.
     file_storage.stream.seek(0)
-    hojas = pd.read_excel(file_storage, dtype=str, sheet_name=None)
-    for _, df in hojas.items():
+    try:
+        hojas = pd.read_excel(file_storage, dtype=str, sheet_name=None).items()
+    except Exception:
+        file_storage.stream.seek(0)
+        hojas = [("Hoja1", pd.read_excel(file_storage, dtype=str))]
+
+    for _, df in hojas:
         df = df.fillna("")
+        if df.empty:
+            continue
         df.columns = normalize_columns(df.columns)
         for _, r in df.iterrows():
             total += 1
-            procesar_fila(r)
+            item = _normalizar_fila_trabajador(r)
+            if not item:
+                omitidos += 1
+                continue
+            registros[item["dni"]] = item
     return registros, total, omitidos
+
 
 def reemplazar_trabajadores_batch(registros):
     """Reemplaza la tabla trabajadores en UNA sola conexión y por lotes.
@@ -3700,7 +3748,7 @@ def trabajadores():
             return redirect(url_for("trabajadores"))
         except Exception as e:
             app.logger.exception("Error importando trabajadores")
-            flash("No se pudo importar trabajadores. Usa la plantilla .xlsx y verifica columnas: EMPRESA, DNI, NOMBRE, CARGO, AREA. Detalle: " + str(e)[:180], "error")
+            flash("No se pudo importar trabajadores. El Excel debe tener como mínimo DNI y NOMBRE/TRABAJADOR. También acepta EMPRESA, CARGO y AREA si existen. Detalle: " + str(e)[:180], "error")
             return redirect(url_for("trabajadores"))
 
     buscar = clean_text(request.args.get("buscar"))
