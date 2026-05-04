@@ -27,7 +27,7 @@ try:
 except Exception:
     psycopg2 = None
 from io import BytesIO
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from zoneinfo import ZoneInfo
 from functools import wraps
 from email.message import EmailMessage
@@ -696,45 +696,6 @@ def reemplazar_trabajadores_batch(registros):
 
 def dia_cerrado(fecha_iso=None):
     return q_one("SELECT * FROM cierres WHERE fecha=?", (fecha_iso or hoy_iso(),))
-
-
-def normalizar_fecha_iso(valor=None):
-    """Devuelve fecha ISO segura. Si viene vacía o inválida, usa hoy."""
-    valor = clean_text(valor) if 'clean_text' in globals() else str(valor or '').strip()
-    if not valor:
-        return hoy_iso()
-    try:
-        return datetime.strptime(valor[:10], "%Y-%m-%d").date().isoformat()
-    except Exception:
-        return hoy_iso()
-
-
-def fecha_trabajo_request():
-    """Fecha operativa para cierres.
-    - Administrador: puede cerrar/abrir cualquier fecha pasada, actual o futura.
-    - Usuario normal: solo trabaja con el día actual.
-    """
-    fecha = normalizar_fecha_iso(request.values.get("fecha") or request.values.get("fecha_cierre") or request.args.get("fecha"))
-    if session.get("role") != "admin":
-        return hoy_iso()
-    return fecha
-
-
-def siguiente_dia_iso(fecha_iso):
-    return (datetime.strptime(fecha_iso, "%Y-%m-%d").date() + timedelta(days=1)).isoformat()
-
-
-def cierre_stats_fecha(fecha_iso):
-    stats = q_one("""
-        SELECT COUNT(*) c, COALESCE(SUM(total),0) t,
-        SUM(CASE WHEN estado='ENTREGADO' THEN 1 ELSE 0 END) e
-        FROM consumos WHERE fecha=?
-    """, (fecha_iso,))
-    total = int(stats["c"] or 0) if stats else 0
-    entregados = int(stats["e"] or 0) if stats else 0
-    pendientes = total - entregados
-    importe = float(stats["t"] or 0) if stats else 0
-    return total, entregados, pendientes, importe
 
 
 def login_required(fn):
@@ -3246,42 +3207,26 @@ def topbar(title, subtitle="Resumen general del sistema"):
 @login_required
 @roles_required("admin")
 def cerrar_dia_manual():
-    fecha = normalizar_fecha_iso(request.values.get("fecha") or hoy_iso())
+    fecha = hoy_iso()
     if dia_cerrado(fecha):
-        flash(f"El día {fecha_peru_txt(fecha)} ya estaba cerrado.", "error")
+        flash("El día ya estaba cerrado.", "error")
     else:
-        total_consumos, total_entregados, total_pendientes, total_importe = cierre_stats_fecha(fecha)
         q_exec("""
             INSERT INTO cierres(fecha,cerrado_por,total_consumos,total_entregados,total_pendientes,total_importe,archivo_excel,correo_destino,correo_estado)
             VALUES(?,?,?,?,?,?,?,?,?)
-        """, (fecha, session["user"], total_consumos, total_entregados, total_pendientes, total_importe, "", "", "CIERRE MANUAL ADMIN"))
-        flash(f"Día {fecha_peru_txt(fecha)} cerrado por administrador. El día siguiente {fecha_peru_txt(siguiente_dia_iso(fecha))} queda abierto automáticamente.", "ok")
-    return redirect(request.referrer or url_for("cierre_dia", fecha=fecha))
+        """, (fecha, session["user"], 0, 0, 0, 0, "", "", "CIERRE MANUAL"))
+        flash("Día cerrado manualmente por administrador.", "ok")
+    return redirect(request.referrer or url_for("dashboard"))
 
 
 @app.route("/abrir_dia_manual")
 @login_required
 @roles_required("admin")
 def abrir_dia_manual():
-    fecha = normalizar_fecha_iso(request.values.get("fecha") or hoy_iso())
+    fecha = hoy_iso()
     q_exec("DELETE FROM cierres WHERE fecha=?", (fecha,))
-    flash(f"Día {fecha_peru_txt(fecha)} abierto/reabierto correctamente por administrador.", "ok")
-    return redirect(request.referrer or url_for("cierre_dia", fecha=fecha))
-
-
-@app.route("/api/estado_dia")
-@login_required
-def api_estado_dia():
-    fecha = fecha_trabajo_request()
-    cerrado = dia_cerrado(fecha)
-    return jsonify({
-        "fecha": fecha,
-        "fecha_txt": fecha_peru_txt(fecha),
-        "cerrado": bool(cerrado),
-        "siguiente_dia": siguiente_dia_iso(fecha),
-        "siguiente_dia_txt": fecha_peru_txt(siguiente_dia_iso(fecha)),
-        "puede_gestionar_historico": session.get("role") == "admin"
-    })
+    flash("Día abierto/reabierto correctamente por administrador.", "ok")
+    return redirect(request.referrer or url_for("dashboard"))
 
 
 def rows_filtrados_desde_request(solo_entregados=False):
@@ -5104,16 +5049,13 @@ def trabajadores():
 @login_required
 @roles_required("admin", "comedor", "rrhh")
 def cierre_dia():
-    fecha = fecha_trabajo_request()
+    fecha = hoy_iso()
     cerrado = dia_cerrado(fecha)
-    es_admin = session.get("role") == "admin"
 
     if request.method == "POST":
-        fecha = fecha_trabajo_request()
-        cerrado = dia_cerrado(fecha)
         if cerrado:
-            flash(f"El día {fecha_peru_txt(fecha)} ya fue cerrado. Solo un administrador puede reabrirlo.", "error")
-            return redirect(url_for("cierre_dia", fecha=fecha))
+            flash("Este día ya fue cerrado.", "error")
+            return redirect(url_for("cierre_dia"))
 
         correo = clean_text(request.form.get("correo"))
         pedidos = q_all("SELECT * FROM consumos WHERE fecha=? ORDER BY area,trabajador", (fecha,))
@@ -5148,8 +5090,8 @@ def cierre_dia():
             VALUES(?,?,?,?,?,?,?,?,?)
         """, (fecha, session["user"], total_consumos, total_entregados, total_pendientes, total_importe, filename, correo, estado_correo))
 
-        flash(f"Día {fecha_peru_txt(fecha)} cerrado. El día siguiente {fecha_peru_txt(siguiente_dia_iso(fecha))} queda abierto automáticamente. Reporte: {filename}. Correo: {estado_correo}", "ok")
-        return redirect(url_for("cierre_dia", fecha=siguiente_dia_iso(fecha) if es_admin else hoy_iso()))
+        flash(f"Día cerrado. Reporte generado: {filename}. Correo: {estado_correo}", "ok")
+        return redirect(url_for("cierre_dia"))
 
     stats = q_one("""
         SELECT COUNT(*) c, COALESCE(SUM(total),0) t,
@@ -5160,66 +5102,43 @@ def cierre_dia():
     ultimo = q_one("SELECT hora FROM consumos WHERE fecha=? ORDER BY hora DESC,id DESC LIMIT 1", (fecha,))
     cerrado_html = ""
     if cerrado:
-        descargar = ""
-        if cerrado['archivo_excel']:
-            descargar = f"<a class='btn btn-blue' href='{url_for('descargar_cierre', filename=cerrado['archivo_excel'])}'>Descargar reporte</a>"
         cerrado_html = f"""
         <div class="card">
           <span class="badge off">DÍA CERRADO</span>
-          <p>Fecha cerrada: <b>{fecha_peru_txt(fecha)}</b></p>
-          <p>Archivo generado: <b>{cerrado['archivo_excel'] or 'Cierre manual sin Excel'}</b></p>
-          {descargar}
+          <p>Archivo generado: <b>{cerrado['archivo_excel']}</b></p>
+          <a class="btn btn-blue" href="{url_for('descargar_cierre', filename=cerrado['archivo_excel'])}">Descargar reporte</a>
         </div>
         """
     usuarios_html = "".join([
         f"<div class='user-row'><span>👤 <b>{u['creado_por'] or 'sin usuario'}</b></span><span>{u['c']} consumos</span><span>{money(u['t'])}</span></div>"
         for u in usuarios
-    ]) or "<div class='muted'>Sin usuarios con registros en esta fecha.</div>"
+    ]) or "<div class='muted'>Sin usuarios con registros hoy.</div>"
 
     form = "" if cerrado else f"""
     <form method="post">
-      <input type="hidden" name="fecha" value="{fecha}">
       <label><b>Correo destino</b></label><br><br>
       <input name="correo" value="{os.getenv('REPORTE_DESTINO','administracion@prize.pe')}" placeholder="correo@empresa.com">
       <br><br>
       <label><input type="checkbox" checked> Incluir archivo Excel</label>
       <br><br>
       <button class="btn-orange" style="width:100%">Cerrar día y enviar reporte</button>
-      <p class="small muted">Al cerrar el día, el sistema deja abierto automáticamente el día siguiente.</p>
     </form>
     """
 
-    admin_selector = ""
     admin_extra = ""
-    if es_admin:
-        admin_selector = f"""
-        <div class="card">
-          <form method="get" action="{url_for('cierre_dia')}" class="form-grid two">
-            <div>
-              <label><b>Fecha a gestionar</b></label>
-              <input type="date" name="fecha" value="{fecha}">
-            </div>
-            <button class="btn-blue">Ver / Gestionar</button>
-          </form>
-          <p class="small muted">Administrador: puedes cerrar o abrir días anteriores y también revisar días futuros.</p>
-        </div>
-        """
+    if session.get("role") == "admin":
         admin_extra = f"""
         <div class='admin-actions'>
-          <a class='btn btn-orange' href='{url_for('cerrar_dia_manual', fecha=fecha)}'>🔒 Cerrar esta fecha</a>
-          <a class='btn btn-blue' href='{url_for('abrir_dia_manual', fecha=fecha)}'>🔓 Abrir esta fecha</a>
-          <a class='btn' href='{url_for('cierre_dia', fecha=siguiente_dia_iso(fecha))}'>➡️ Ir al día siguiente</a>
+          <a class='btn btn-orange' href='{url_for('cerrar_dia_manual')}'>🔒 Cerrar día</a>
+          <a class='btn btn-blue' href='{url_for('abrir_dia_manual')}'>🔓 Abrir día</a>
           <a class='btn' href='{url_for('exportar_concesionaria')}'>Archivo concesionaria</a>
           <a class='btn btn-orange' href='{url_for('reporte_entrega')}'>Reporte entrega/pago</a>
         </div>
         """
-
-    estado_txt = 'DÍA CERRADO' if cerrado else 'DÍA ABIERTO'
-    html = topbar("Cierre de Día y Reportes", "Consolida y envía el reporte del día por correo") + admin_selector + admin_extra + f"""
+    html = topbar("Cierre de Día y Reportes", "Consolida y envía el reporte del día por correo") + admin_extra + f"""
     <div class="card">
-      <span class="badge {'off' if cerrado else 'ok'}">{'🔒' if cerrado else '🟢'} {estado_txt}</span>
-      <span style="margin-left:18px" class="muted">Fecha operativa: {fecha_peru_txt(fecha)}</span>
-      <span style="margin-left:18px" class="muted">Siguiente día automático: {fecha_peru_txt(siguiente_dia_iso(fecha))}</span>
+      <span class="badge {'off' if cerrado else 'ok'}">🟢 {'DÍA CERRADO' if cerrado else 'DÍA ABIERTO'}</span>
+      <span style="margin-left:18px" class="muted">Fecha actual: {fecha_peru_txt(fecha)}</span>
 
       <div class="mini-kpis">
         <div class="card"><span class="muted small">Total consumos</span><b>{stats['c']}</b></div>
@@ -5229,19 +5148,21 @@ def cierre_dia():
       </div>
     </div>
 
-    <div class="form-grid" style="grid-template-columns:1.2fr .8fr; margin-top:18px">
+    <br>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
       <div class="card">
-        <h3>Usuarios con registros del día</h3>
+        <h3 style="margin-top:0">Usuarios que registraron hoy</h3>
         {usuarios_html}
       </div>
       <div class="card">
-        <h3>Cierre / envío</h3>
+        <h3 style="margin-top:0">Enviar reporte por correo</h3>
         {form}
         {cerrado_html}
       </div>
     </div>
     """
-    return render_page(html, "cerrar")
+    return render_page(html, "cierre")
+
 
 @app.route("/reportes")
 @login_required
