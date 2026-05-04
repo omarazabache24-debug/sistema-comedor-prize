@@ -80,7 +80,7 @@ def internal_error(e):
         <div class="login-page">
           <div class="login-card" style="max-width:520px">
             <div class="login-inner">
-              <img class="prize-logo-img" src="{{url_for('static', filename='logo_prize.jpeg')}}" alt="Prize Superfruits">
+              <img class="prize-logo-img" src="/static/logo_prize.jpeg" alt="Prize Superfruits">
               <h2 class="login-title">Sistema Comedor PRIZE</h2>
               <p class="login-subtitle" style="color:#991b1b;font-weight:900">Se detectó un error interno controlado.</p>
               <p style="font-size:13px;color:#cbd5e1;line-height:1.45">No se perdió información. Se corrigió para no generar redirecciones infinitas.</p>
@@ -1677,6 +1677,64 @@ input[type="checkbox"]{width:auto!important;min-height:0!important;height:18px!i
 .entrega-ok-row{background:#ecfdf5!important;box-shadow:inset 5px 0 0 #16a34a}
 @media(max-width:700px){.prize-logo-img{max-width:160px}.hero-brand .prize-logo-img{max-width:155px}.side-logo-pro .prize-logo-img{max-width:130px}.entrega-pro-panel button{width:100%!important}.entrega-pro-panel input,.entrega-pro-panel select{font-size:16px!important}}
 
+
+
+/* ===== FIX DEFINITIVO 04/05/2026: LOGO REAL + PESTAÑAS APP CELULAR ===== */
+.prize-logo-img{display:block!important;object-fit:contain!important;width:auto!important;height:auto!important;}
+.hero-brand .prize-logo-img{max-width:190px!important;max-height:78px!important;margin:0 auto!important;background:#fff!important;border-radius:16px!important;padding:7px!important;box-shadow:0 6px 18px rgba(0,0,0,.16)!important;}
+.side-logo-pro .prize-logo-img{max-width:158px!important;max-height:76px!important;margin:0 auto 6px!important;background:#fff!important;border-radius:16px!important;padding:7px!important;}
+.login-inner .prize-logo-img{max-width:240px!important;max-height:118px!important;margin:0 auto 16px!important;background:#fff!important;border-radius:18px!important;padding:10px!important;box-shadow:0 8px 22px rgba(0,0,0,.24)!important;}
+
+@media(max-width:700px){
+  html,body{width:100%!important;max-width:100%!important;overflow-x:hidden!important;background:#f3f4f6!important;}
+  *{box-sizing:border-box!important;}
+  .app-shell,.main-layout,.content{width:100%!important;max-width:100%!important;margin:0!important;left:0!important;right:0!important;overflow-x:hidden!important;}
+  .hero{display:grid!important;grid-template-columns:72px 1fr!important;align-items:center!important;gap:10px!important;min-height:64px!important;padding:8px 10px!important;background:#062338!important;position:sticky!important;top:0!important;z-index:1000!important;}
+  .hero h1:before{content:''!important;}
+  .hero-brand{display:block!important;min-width:0!important;}
+  .hero-brand .prize-logo-img{max-width:70px!important;max-height:46px!important;border-radius:10px!important;padding:3px!important;background:#fff!important;}
+  .hero h1{font-size:17px!important;line-height:1.08!important;color:#fff!important;margin:0!important;text-align:left!important;}
+  .hero p{display:block!important;font-size:10px!important;line-height:1.05!important;color:#cde7f9!important;margin:2px 0 0!important;text-align:left!important;}
+
+  .fixed-prize-sidebar{position:sticky!important;top:64px!important;width:100%!important;max-width:100%!important;height:auto!important;margin:0!important;padding:6px!important;background:#061b2b!important;z-index:999!important;border-radius:0!important;}
+  .side-logo-pro,.side-user-card,.side-slogan-card,.side-title{display:none!important;}
+  .nav-pro{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;width:100%!important;overflow:visible!important;padding:0!important;margin:0!important;}
+  .nav-pro a{width:100%!important;min-width:0!important;min-height:42px!important;margin:0!important;padding:7px 4px!important;border-radius:10px!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:2px!important;text-align:center!important;font-size:10px!important;line-height:1.05!important;font-weight:900!important;background:rgba(255,255,255,.08)!important;color:#fff!important;white-space:normal!important;}
+  .nav-pro a.on{background:linear-gradient(135deg,#0aa866,#0d73b8)!important;box-shadow:0 5px 14px rgba(0,0,0,.2)!important;}
+  .nav-ico{font-size:15px!important;width:auto!important;line-height:1!important;}
+  .nav-pro .pill{display:none!important;}
+  .content{padding:10px!important;background:#f3f4f6!important;}
+  .card{width:100%!important;max-width:100%!important;overflow:hidden!important;background:#fff!important;color:#172033!important;}
+  .topbar h2{font-size:19px!important;line-height:1.12!important;color:#172033!important;}
+
+  .entrega-pro-panel{width:100%!important;max-width:100%!important;overflow:hidden!important;padding:12px!important;border-radius:16px!important;background:linear-gradient(135deg,#eff6ff,#fff)!important;}
+  .entrega-pro-status{grid-template-columns:1fr!important;gap:8px!important;}
+  #qr_entrega_reader{max-width:100%!important;}
+
+  /* Entregas en celular: tabla tipo tarjetas, no pantalla cortada */
+  #pedidos_body{display:block!important;width:100%!important;}
+  #pedidos_body tr{display:block!important;width:100%!important;background:#fff!important;border-radius:12px!important;margin:8px 0!important;padding:9px!important;box-shadow:0 2px 9px rgba(0,0,0,.10)!important;border:1px solid #e5e7eb!important;}
+  #pedidos_body td{display:grid!important;grid-template-columns:92px 1fr!important;gap:6px!important;border:0!important;padding:4px 2px!important;white-space:normal!important;font-size:12px!important;color:#172033!important;}
+  #pedidos_body td:nth-child(1)::before{content:'Sel.';font-weight:900;color:#64748b;}
+  #pedidos_body td:nth-child(2)::before{content:'#';font-weight:900;color:#64748b;}
+  #pedidos_body td:nth-child(3)::before{content:'Hora';font-weight:900;color:#64748b;}
+  #pedidos_body td:nth-child(4)::before{content:'DNI';font-weight:900;color:#64748b;}
+  #pedidos_body td:nth-child(5)::before{content:'Trabajador';font-weight:900;color:#64748b;}
+  #pedidos_body td:nth-child(6)::before{content:'Tipo';font-weight:900;color:#64748b;}
+  #pedidos_body td:nth-child(7)::before{content:'Cantidad';font-weight:900;color:#64748b;}
+  #pedidos_body td:nth-child(8)::before{content:'Obs.';font-weight:900;color:#64748b;}
+  #pedidos_body td:nth-child(9)::before{content:'Estado';font-weight:900;color:#64748b;}
+  .table-wrap{width:100%!important;max-width:100%!important;overflow:visible!important;max-height:none!important;background:transparent!important;border:0!important;}
+  .table-wrap table:has(#pedidos_body){display:block!important;width:100%!important;min-width:0!important;}
+  .table-wrap table:has(#pedidos_body) thead{display:none!important;}
+
+  .login-page{min-height:100dvh!important;height:100dvh!important;padding:14px!important;background:linear-gradient(180deg,#050505,#171717)!important;}
+  .login-card{max-width:360px!important;width:calc(100vw - 28px)!important;}
+  .login-inner .prize-logo-img{max-width:225px!important;max-height:110px!important;border-radius:18px!important;padding:8px!important;}
+}
+@media(max-width:390px){.nav-pro{grid-template-columns:repeat(3,minmax(0,1fr))!important}.nav-pro a{font-size:9.5px!important;padding-left:2px!important;padding-right:2px!important;}}
+@media(max-width:340px){.nav-pro{grid-template-columns:repeat(2,minmax(0,1fr))!important}.hero{grid-template-columns:60px 1fr!important}.hero-brand .prize-logo-img{max-width:58px!important;}}
+
 </style>
 <script src="https://unpkg.com/html5-qrcode.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js" crossorigin="anonymous"></script>
@@ -1691,7 +1749,7 @@ input[type="checkbox"]{width:auto!important;min-height:0!important;height:18px!i
 
   <header class="hero">
     <div class="hero-brand">
-      <img class="prize-logo-img" src="{{url_for('static', filename='logo_prize.jpeg')}}" alt="Prize Superfruits">
+      <img class="prize-logo-img" src="/static/logo_prize.jpeg" alt="Prize Superfruits">
     </div>
 
     <div>
@@ -1704,7 +1762,7 @@ input[type="checkbox"]{width:auto!important;min-height:0!important;height:18px!i
 <div class="main-layout">
     <aside class="sidebar fixed-prize-sidebar">
       <div class="side-logo-pro">
-        <img class="prize-logo-img" src="{{url_for('static', filename='logo_prize.jpeg')}}" alt="Prize Superfruits">
+        <img class="prize-logo-img" src="/static/logo_prize.jpeg" alt="Prize Superfruits">
       </div>
 
       <div class="side-user-card">
@@ -2215,7 +2273,7 @@ def login():
     <div class="login-page">
       <div class="login-card">
         <div class="login-inner">
-          <img class="prize-logo-img" src="{{url_for('static', filename='logo_prize.jpeg')}}" alt="Prize Superfruits">
+          <img class="prize-logo-img" src="/static/logo_prize.jpeg" alt="Prize Superfruits">
           <h2 class="login-title">Sistema Comedor PRIZE</h2>
           <p class="login-subtitle">Acceso al sistema</p>
 
