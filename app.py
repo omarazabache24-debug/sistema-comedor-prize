@@ -107,7 +107,7 @@ def internal_error(e):
         <div class="login-page">
           <div class="login-card" style="max-width:520px">
             <div class="login-inner">
-              <img class="prize-logo-img" src="{logo_prize_data_uri()}" alt="Prize Superfruits">
+              <div class="prize-wordmark prize-wordmark-login"><div class="prize-script">Prize<span class="prize-e">e<i></i></span></div><div class="prize-super">SUPERFRUITS</div></div>
               <h2 class="login-title">Sistema Comedor PRIZE</h2>
               <p class="login-subtitle" style="color:#991b1b;font-weight:900">Se detectó un error interno controlado.</p>
               <p style="font-size:13px;color:#cbd5e1;line-height:1.45">No se perdió información. Se corrigió para no generar redirecciones infinitas.</p>
@@ -2444,6 +2444,152 @@ th{
   }
 }
 
+
+
+/* =========================================================
+   AJUSTE FINAL SOLICITADO: TÍTULO CENTRADO + LOGO EN LETRAS
+   - Se elimina el fondo blanco del logo.
+   - Se usa wordmark textual PRIZE SUPERFRUITS para que impacte.
+   - Header/título centrado en escritorio y celular.
+   ========================================================= */
+.prize-wordmark{
+  display:inline-flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:auto!important;
+  max-width:100%!important;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  padding:0!important;
+  margin:0 auto!important;
+  text-align:center!important;
+  line-height:1!important;
+}
+.prize-script{
+  position:relative!important;
+  display:inline-flex!important;
+  align-items:flex-end!important;
+  gap:0!important;
+  font-family:"Segoe Script","Brush Script MT","Trebuchet MS",Arial,sans-serif!important;
+  font-style:italic!important;
+  font-weight:950!important;
+  letter-spacing:-5px!important;
+  color:#69b7dc!important;
+  filter:drop-shadow(0 9px 18px rgba(0,0,0,.45)) drop-shadow(0 0 12px rgba(105,183,220,.28))!important;
+  text-shadow:0 2px 0 rgba(0,0,0,.18)!important;
+}
+.prize-e{
+  position:relative!important;
+  display:inline-grid!important;
+  place-items:center!important;
+  margin-left:0!important;
+  border-radius:50%!important;
+  border:4px solid #2f78b7!important;
+  color:#183e73!important;
+  background:radial-gradient(circle at 66% 38%,#ffd34f 0 24%,#f59e0b 25% 52%,#dd4f0b 53% 100%)!important;
+  font-family:"Trebuchet MS",Arial,sans-serif!important;
+  font-style:italic!important;
+  font-weight:950!important;
+  letter-spacing:-2px!important;
+  box-shadow:0 8px 18px rgba(245,111,16,.34), inset 0 0 0 2px rgba(255,255,255,.34)!important;
+}
+.prize-e i{
+  position:absolute!important;
+  right:5px!important;
+  top:-32px!important;
+  width:15px!important;
+  height:34px!important;
+  background:linear-gradient(135deg,#55c742,#168a33)!important;
+  border-radius:100% 0 100% 0!important;
+  transform:rotate(37deg)!important;
+  box-shadow:0 5px 12px rgba(0,0,0,.25)!important;
+}
+.prize-e:before{
+  content:""!important;
+  position:absolute!important;
+  right:20px!important;
+  top:-24px!important;
+  width:12px!important;
+  height:28px!important;
+  background:linear-gradient(135deg,#61d74b,#138f35)!important;
+  border-radius:100% 0 100% 0!important;
+  transform:rotate(-34deg)!important;
+}
+.prize-super{
+  display:inline-block!important;
+  margin-top:5px!important;
+  padding:4px 18px 2px!important;
+  color:#65d761!important;
+  font-family:"Segoe UI",Arial,sans-serif!important;
+  font-weight:950!important;
+  letter-spacing:2px!important;
+  border-top:2px solid rgba(101,215,97,.82)!important;
+  text-shadow:0 5px 13px rgba(0,0,0,.42),0 0 10px rgba(101,215,97,.28)!important;
+}
+.prize-wordmark-login{margin-bottom:18px!important;}
+.prize-wordmark-login .prize-script{font-size:72px!important;}
+.prize-wordmark-login .prize-e{width:50px!important;height:50px!important;font-size:34px!important;}
+.prize-wordmark-login .prize-super{font-size:14px!important;}
+.prize-wordmark-hero{margin:0 auto 10px!important;}
+.prize-wordmark-hero .prize-script{font-size:64px!important;}
+.prize-wordmark-hero .prize-e{width:45px!important;height:45px!important;font-size:31px!important;}
+.prize-wordmark-hero .prize-super{font-size:12px!important;}
+.prize-wordmark-side{margin:8px auto 14px!important;}
+.prize-wordmark-side .prize-script{font-size:45px!important;letter-spacing:-4px!important;}
+.prize-wordmark-side .prize-e{width:32px!important;height:32px!important;font-size:22px!important;border-width:3px!important;}
+.prize-wordmark-side .prize-e i{width:10px!important;height:24px!important;top:-24px!important;right:3px!important;}
+.prize-wordmark-side .prize-e:before{width:8px!important;height:20px!important;top:-18px!important;right:14px!important;}
+.prize-wordmark-side .prize-super{font-size:9px!important;letter-spacing:1px!important;padding:3px 10px 1px!important;}
+.hero{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  text-align:center!important;
+  background:radial-gradient(circle at 18% 0%,rgba(13,115,184,.36),transparent 34%),radial-gradient(circle at 82% 0%,rgba(22,163,74,.34),transparent 35%),linear-gradient(135deg,#061827 0%,#07304b 52%,#06361f 100%)!important;
+}
+.hero-title-only{
+  width:100%!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  text-align:center!important;
+}
+.hero-title-only h1{
+  width:100%!important;
+  text-align:center!important;
+  margin:0 auto 6px!important;
+  font-weight:950!important;
+  letter-spacing:.2px!important;
+}
+.hero-title-only p{
+  width:100%!important;
+  text-align:center!important;
+  margin:0 auto!important;
+}
+.login-inner .prize-logo-img,.hero-brand .prize-logo-img,.side-logo-pro .prize-logo-img{display:none!important;}
+.login-card{
+  background:linear-gradient(180deg,rgba(3,7,18,.96),rgba(5,10,22,.92))!important;
+  border:1px solid rgba(105,183,220,.32)!important;
+}
+@media(max-width:700px){
+  .hero{display:flex!important;min-height:92px!important;padding:12px 10px!important;position:sticky!important;top:0!important;}
+  .hero-title-only{text-align:center!important;align-items:center!important;}
+  .hero-title-only h1{text-align:center!important;font-size:21px!important;line-height:1.08!important;}
+  .hero-title-only p{text-align:center!important;font-size:11px!important;}
+  .prize-wordmark-hero{margin-bottom:7px!important;}
+  .prize-wordmark-hero .prize-script{font-size:44px!important;letter-spacing:-4px!important;}
+  .prize-wordmark-hero .prize-e{width:32px!important;height:32px!important;font-size:22px!important;border-width:3px!important;}
+  .prize-wordmark-hero .prize-e i{width:9px!important;height:21px!important;top:-22px!important;right:3px!important;}
+  .prize-wordmark-hero .prize-e:before{width:7px!important;height:18px!important;top:-16px!important;right:14px!important;}
+  .prize-wordmark-hero .prize-super{font-size:9px!important;letter-spacing:1px!important;padding:2px 10px 1px!important;}
+  .prize-wordmark-login .prize-script{font-size:62px!important;}
+  .prize-wordmark-login .prize-e{width:44px!important;height:44px!important;font-size:30px!important;}
+  .prize-wordmark-login .prize-super{font-size:12px!important;}
+}
+
 </style>
 <script src="https://unpkg.com/html5-qrcode.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js" crossorigin="anonymous"></script>
@@ -2458,6 +2604,7 @@ th{
 
   <header class="hero">
     <div class="hero-title-only">
+      <div class="prize-wordmark prize-wordmark-hero"><div class="prize-script">Prize<span class="prize-e">e<i></i></span></div><div class="prize-super">SUPERFRUITS</div></div>
       <h1>Sistema Comedor PRIZE</h1>
       <p>ERP para la Gestión del Comedor Corporativo</p>
     </div>
@@ -2467,7 +2614,7 @@ th{
 <div class="main-layout">
     <aside class="sidebar fixed-prize-sidebar">
       <div class="side-logo-pro">
-        <img class="prize-logo-img" src="" alt="Prize Superfruits">
+        <div class="prize-wordmark prize-wordmark-side"><div class="prize-script">Prize<span class="prize-e">e<i></i></span></div><div class="prize-super">SUPERFRUITS</div></div>
       </div>
 
       <div class="side-user-card">
@@ -2978,7 +3125,7 @@ def login():
     <div class="login-page">
       <div class="login-card">
         <div class="login-inner">
-          <img class="prize-logo-img" src="{logo_prize_data_uri()}" alt="Prize Superfruits">
+          <div class="prize-wordmark prize-wordmark-login"><div class="prize-script">Prize<span class="prize-e">e<i></i></span></div><div class="prize-super">SUPERFRUITS</div></div>
           <h2 class="login-title">Sistema Comedor PRIZE</h2>
           <p class="login-subtitle">Acceso al sistema</p>
 
