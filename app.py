@@ -80,7 +80,7 @@ def internal_error(e):
         <div class="login-page">
           <div class="login-card" style="max-width:520px">
             <div class="login-inner">
-              <img class="prize-logo-img" src="/static/logo_prize.jpeg" alt="Prize Superfruits">
+              <img class="prize-logo-img" src="{{ url_for('static', filename='logo_prize.jpeg') }}?v=prize-real-20260504" alt="Prize Superfruits">
               <h2 class="login-title">Sistema Comedor PRIZE</h2>
               <p class="login-subtitle" style="color:#991b1b;font-weight:900">Se detectó un error interno controlado.</p>
               <p style="font-size:13px;color:#cbd5e1;line-height:1.45">No se perdió información. Se corrigió para no generar redirecciones infinitas.</p>
@@ -1735,6 +1735,293 @@ input[type="checkbox"]{width:auto!important;min-height:0!important;height:18px!i
 @media(max-width:390px){.nav-pro{grid-template-columns:repeat(3,minmax(0,1fr))!important}.nav-pro a{font-size:9.5px!important;padding-left:2px!important;padding-right:2px!important;}}
 @media(max-width:340px){.nav-pro{grid-template-columns:repeat(2,minmax(0,1fr))!important}.hero{grid-template-columns:60px 1fr!important}.hero-brand .prize-logo-img{max-width:58px!important;}}
 
+
+
+/* =========================================================
+   NIVEL PRO TOTAL DEFINITIVO 04/05/2026
+   - Logo PRIZE real visible en login, cabecera y menú
+   - Indicadores tipo web con iconos, colores y presentación
+   - Pestañas horizontales dinámicas para app celular
+   - Pestañas y tablas más presentables para admin y usuario
+   ========================================================= */
+:root{
+  --prize-blue:#1f5f8a;
+  --prize-blue-2:#0d73b8;
+  --prize-green:#2aa84a;
+  --prize-orange:#f58220;
+  --prize-yellow:#f5b52e;
+  --prize-dark:#071827;
+}
+.prize-logo-img{
+  display:block!important;
+  object-fit:contain!important;
+  object-position:center!important;
+  width:auto!important;
+  height:auto!important;
+  max-width:100%!important;
+  image-rendering:auto!important;
+}
+.login-inner .prize-logo-img{
+  width:240px!important;
+  max-width:88%!important;
+  max-height:126px!important;
+  margin:0 auto 16px!important;
+  background:#fff!important;
+  border-radius:20px!important;
+  padding:10px 14px!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.32)!important;
+}
+.hero-brand .prize-logo-img{
+  width:190px!important;
+  max-height:88px!important;
+  background:#fff!important;
+  border-radius:18px!important;
+  padding:8px 12px!important;
+  box-shadow:0 10px 26px rgba(0,0,0,.18)!important;
+}
+.side-logo-pro .prize-logo-img{
+  width:168px!important;
+  max-height:84px!important;
+  margin:0 auto 10px!important;
+  background:#fff!important;
+  border-radius:18px!important;
+  padding:8px 12px!important;
+  box-shadow:0 10px 24px rgba(0,0,0,.18)!important;
+}
+.hero{
+  background:linear-gradient(135deg,#061b2b 0%,#0a3854 48%,#0d6135 100%)!important;
+  border-bottom:4px solid var(--prize-orange)!important;
+}
+.nav-pro{
+  scrollbar-width:thin!important;
+}
+.nav-pro a{
+  border:1px solid rgba(255,255,255,.08)!important;
+}
+.nav-pro a.on{
+  background:linear-gradient(135deg,var(--prize-green),var(--prize-blue-2))!important;
+  border-color:rgba(255,255,255,.25)!important;
+}
+.kpi-grid{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(210px,1fr))!important;
+  gap:16px!important;
+}
+.kpi-card{
+  position:relative!important;
+  overflow:hidden!important;
+  min-height:116px!important;
+  border:0!important;
+  color:#fff!important;
+  padding:18px!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:15px!important;
+  border-radius:20px!important;
+  box-shadow:0 16px 36px rgba(6,24,43,.16)!important;
+}
+.kpi-card:nth-child(1){background:linear-gradient(135deg,#0f9f52,#026b36)!important;}
+.kpi-card:nth-child(2){background:linear-gradient(135deg,#1687d9,#075985)!important;}
+.kpi-card:nth-child(3){background:linear-gradient(135deg,#7c3aed,#4c1d95)!important;}
+.kpi-card:nth-child(4){background:linear-gradient(135deg,#f59e0b,#ea580c)!important;}
+.kpi-card:after{
+  content:""!important;
+  position:absolute!important;
+  right:-36px!important;
+  bottom:-44px!important;
+  width:130px!important;
+  height:130px!important;
+  border-radius:50%!important;
+  background:rgba(255,255,255,.14)!important;
+}
+.kpi-card .icon-circle{
+  width:54px!important;
+  height:54px!important;
+  border-radius:18px!important;
+  display:grid!important;
+  place-items:center!important;
+  flex:0 0 54px!important;
+  background:rgba(255,255,255,.22)!important;
+  color:#fff!important;
+  font-size:24px!important;
+  font-weight:950!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)!important;
+}
+.kpi-card .label,.kpi-card .sub{color:rgba(255,255,255,.88)!important;}
+.kpi-card .num{
+  color:#fff!important;
+  font-size:31px!important;
+  font-weight:1000!important;
+  letter-spacing:-1px!important;
+}
+.kpi-card .num[style]{color:#fff!important;}
+.card{
+  border:1px solid #e6edf5!important;
+  box-shadow:0 12px 30px rgba(15,35,55,.08)!important;
+}
+.topbar h2{
+  color:#082033!important;
+  font-weight:1000!important;
+  letter-spacing:-.3px!important;
+}
+.table-head{
+  background:linear-gradient(135deg,#f8fafc,#eef6ff)!important;
+  border:1px solid #e2e8f0!important;
+  border-radius:16px!important;
+  padding:12px!important;
+  margin-bottom:12px!important;
+}
+.table-wrap{
+  border-radius:18px!important;
+  border:1px solid #e6edf5!important;
+  box-shadow:0 10px 26px rgba(15,35,55,.06)!important;
+}
+table th{
+  background:linear-gradient(135deg,#061b2b,#0b3350)!important;
+  color:#eaf7ff!important;
+  font-weight:950!important;
+  white-space:nowrap!important;
+}
+table td{vertical-align:middle!important;}
+.entrega-pro-panel{
+  background:linear-gradient(135deg,#eef7ff,#ffffff 55%,#f0fff4)!important;
+  border:1px solid rgba(13,115,184,.25)!important;
+  box-shadow:0 14px 34px rgba(13,115,184,.12)!important;
+}
+.entrega-pro-status>div{
+  background:linear-gradient(135deg,#ffffff,#e9f5ff)!important;
+  border:1px solid #cfe8ff!important;
+  box-shadow:0 8px 18px rgba(13,115,184,.08)!important;
+}
+
+@media(max-width:700px){
+  html,body{overflow-x:hidden!important;background:#f4f6f8!important;}
+  .login-page{
+    min-height:100dvh!important;
+    height:100dvh!important;
+    padding:14px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    background:radial-gradient(circle at 12% 91%,#002c9b 0 20%,transparent 21%),radial-gradient(circle at 90% 96%,#00571c 0 24%,transparent 25%),linear-gradient(180deg,#050505,#181818)!important;
+  }
+  .login-card{max-width:374px!important;width:calc(100vw - 24px)!important;border-radius:20px!important;}
+  .login-inner{padding:24px 20px 50px!important;}
+  .login-inner .prize-logo-img{
+    width:235px!important;
+    max-width:92%!important;
+    max-height:122px!important;
+    margin-bottom:14px!important;
+  }
+  .hero{
+    grid-template-columns:76px 1fr!important;
+    gap:9px!important;
+    padding:8px 10px!important;
+    min-height:66px!important;
+    position:sticky!important;
+    top:0!important;
+    z-index:1200!important;
+  }
+  .hero-brand .prize-logo-img{
+    width:70px!important;
+    max-height:48px!important;
+    border-radius:12px!important;
+    padding:3px!important;
+    box-shadow:0 5px 13px rgba(0,0,0,.22)!important;
+  }
+  .hero h1{font-size:17px!important;line-height:1.08!important;margin:0!important;color:#fff!important;}
+  .hero p{font-size:10.5px!important;line-height:1.08!important;color:#d7edf9!important;margin:2px 0 0!important;}
+  .fixed-prize-sidebar{
+    position:sticky!important;
+    top:66px!important;
+    z-index:1190!important;
+    width:100%!important;
+    height:auto!important;
+    padding:7px 7px 8px!important;
+    background:#071827!important;
+    border-bottom:1px solid rgba(255,255,255,.10)!important;
+  }
+  .side-logo-pro,.side-user-card,.side-slogan-card,.side-title{display:none!important;}
+  .nav-pro{
+    display:flex!important;
+    flex-wrap:nowrap!important;
+    gap:7px!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    -webkit-overflow-scrolling:touch!important;
+    scroll-snap-type:x proximity!important;
+    padding:0 3px 2px!important;
+    margin:0!important;
+    width:100%!important;
+  }
+  .nav-pro::-webkit-scrollbar{height:4px!important;}
+  .nav-pro::-webkit-scrollbar-thumb{background:#2aa84a!important;border-radius:999px!important;}
+  .nav-pro a{
+    flex:0 0 auto!important;
+    min-width:92px!important;
+    max-width:118px!important;
+    min-height:48px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:3px!important;
+    padding:7px 9px!important;
+    margin:0!important;
+    border-radius:15px!important;
+    background:rgba(255,255,255,.08)!important;
+    color:#fff!important;
+    text-align:center!important;
+    font-size:10px!important;
+    line-height:1.05!important;
+    font-weight:950!important;
+    white-space:normal!important;
+    scroll-snap-align:start!important;
+  }
+  .nav-pro a.on{
+    background:linear-gradient(135deg,#2aa84a,#0d73b8)!important;
+    box-shadow:0 8px 18px rgba(0,0,0,.28)!important;
+    transform:none!important;
+  }
+  .nav-ico{font-size:16px!important;line-height:1!important;width:auto!important;}
+  .nav-pro .pill{display:none!important;}
+  .main-layout{display:block!important;width:100%!important;max-width:100%!important;}
+  .content{padding:10px!important;width:100%!important;max-width:100%!important;overflow-x:hidden!important;background:#f4f6f8!important;}
+  .panel-right{display:none!important;}
+  .footer{display:none!important;}
+  .topbar{display:block!important;margin-bottom:10px!important;}
+  .topbar h2{font-size:19px!important;line-height:1.13!important;margin:0 0 4px!important;color:#111827!important;}
+  .card{border-radius:18px!important;padding:13px!important;margin-bottom:12px!important;box-shadow:0 8px 20px rgba(15,35,55,.08)!important;overflow:hidden!important;}
+  .kpi-grid,.mini-kpis,.ind-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important;
+  }
+  .kpi-card{
+    min-height:96px!important;
+    border-radius:18px!important;
+    padding:12px!important;
+    gap:9px!important;
+  }
+  .kpi-card .icon-circle{width:42px!important;height:42px!important;flex-basis:42px!important;border-radius:14px!important;font-size:19px!important;}
+  .kpi-card .label{font-size:11px!important;line-height:1.1!important;}
+  .kpi-card .num{font-size:23px!important;line-height:1.05!important;}
+  .kpi-card .sub{font-size:10px!important;line-height:1.1!important;}
+  .form-grid,.form-grid.two,.filter-grid{grid-template-columns:1fr!important;gap:10px!important;}
+  input,select,textarea{font-size:16px!important;min-height:44px!important;border-radius:12px!important;background:#fff!important;border:1px solid #dce6f0!important;}
+  button,.btn{width:100%!important;min-height:44px!important;border-radius:12px!important;}
+  .table-head{display:block!important;border-radius:16px!important;padding:11px!important;}
+  .table-head h3{font-size:16px!important;margin:0 0 8px!important;}
+  .table-wrap{overflow:auto!important;-webkit-overflow-scrolling:touch!important;max-width:100%!important;border-radius:16px!important;}
+  .table-wrap table{min-width:760px!important;font-size:12px!important;}
+  .entrega-pro-panel{padding:12px!important;border-radius:18px!important;}
+  .entrega-pro-status{grid-template-columns:1fr!important;}
+}
+@media(max-width:380px){
+  .kpi-grid,.mini-kpis,.ind-grid{grid-template-columns:1fr!important;}
+  .nav-pro a{min-width:88px!important;font-size:9.5px!important;}
+  .login-inner .prize-logo-img{width:215px!important;}
+}
+
 </style>
 <script src="https://unpkg.com/html5-qrcode.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js" crossorigin="anonymous"></script>
@@ -1749,7 +2036,7 @@ input[type="checkbox"]{width:auto!important;min-height:0!important;height:18px!i
 
   <header class="hero">
     <div class="hero-brand">
-      <img class="prize-logo-img" src="/static/logo_prize.jpeg" alt="Prize Superfruits">
+      <img class="prize-logo-img" src="{{ url_for('static', filename='logo_prize.jpeg') }}?v=prize-real-20260504" alt="Prize Superfruits">
     </div>
 
     <div>
@@ -1762,7 +2049,7 @@ input[type="checkbox"]{width:auto!important;min-height:0!important;height:18px!i
 <div class="main-layout">
     <aside class="sidebar fixed-prize-sidebar">
       <div class="side-logo-pro">
-        <img class="prize-logo-img" src="/static/logo_prize.jpeg" alt="Prize Superfruits">
+        <img class="prize-logo-img" src="{{ url_for('static', filename='logo_prize.jpeg') }}?v=prize-real-20260504" alt="Prize Superfruits">
       </div>
 
       <div class="side-user-card">
@@ -2273,7 +2560,7 @@ def login():
     <div class="login-page">
       <div class="login-card">
         <div class="login-inner">
-          <img class="prize-logo-img" src="/static/logo_prize.jpeg" alt="Prize Superfruits">
+          <img class="prize-logo-img" src="{{ url_for('static', filename='logo_prize.jpeg') }}?v=prize-real-20260504" alt="Prize Superfruits">
           <h2 class="login-title">Sistema Comedor PRIZE</h2>
           <p class="login-subtitle">Acceso al sistema</p>
 
