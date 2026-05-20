@@ -2894,9 +2894,7 @@ body.sidebar-collapsed .content{width:100%!important;max-width:none!important}
             <b>Fecha:</b> {{fecha_hoy}}<br>
             <b>{{'Cerrado' if cerrado_hoy else 'Abierto'}} por:</b> admin (08:00 AM)
           </p>
-          {% if not cerrado_hoy %}
-            <a class="btn btn-orange" style="width:100%;text-align:center" href="{{url_for('cierre_dia')}}">Cerrar día y consolidar</a>
-          {% endif %}
+          <div class="muted small" style="margin-top:10px">Para cerrar o reabrir el día, usa la pestaña <b>Cerrar día</b>.</div>
         </div>
       </div>
 
@@ -3335,6 +3333,43 @@ def topbar(title, subtitle="Resumen general del sistema"):
     """
 
 
+
+
+def generar_excel_cierre(fecha=None):
+    """Genera/re-genera el Excel real del cierre con la data del día."""
+    fecha = clean_text(fecha) or hoy_iso()
+    pedidos = q_all("SELECT * FROM consumos WHERE fecha=? ORDER BY area,trabajador,hora,id", (fecha,))
+    df = pd.DataFrame([dict(p) for p in pedidos])
+    if df.empty:
+        df = pd.DataFrame(columns=["fecha","hora","dni","trabajador","empresa","area","tipo","cantidad","precio_unitario","total","estado","creado_por","entregado_por","entregado_en"])
+    resumen_area = df.groupby(["area","estado"], as_index=False).agg(cantidad=("cantidad","sum"), total=("total","sum")) if not df.empty and "area" in df.columns else pd.DataFrame()
+    resumen_usuario = df.groupby(["creado_por"], as_index=False).agg(consumos=("dni","count"), total=("total","sum")) if not df.empty and "creado_por" in df.columns else pd.DataFrame()
+    filename = f"cierre_comedor_{fecha.replace('-','_')}.xlsx"
+    path = os.path.join(REPORT_DIR, filename)
+    os.makedirs(REPORT_DIR, exist_ok=True)
+    with pd.ExcelWriter(path, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name="DETALLE_DIA", index=False)
+        resumen_area.to_excel(writer, sheet_name="RESUMEN_AREA", index=False)
+        resumen_usuario.to_excel(writer, sheet_name="RESUMEN_USUARIOS", index=False)
+    total_consumos = len(pedidos)
+    total_entregados = sum(1 for p in pedidos if p["estado"] == "ENTREGADO")
+    total_pendientes = total_consumos - total_entregados
+    total_importe = sum(float(p["total"] or 0) for p in pedidos)
+    return filename, path, total_consumos, total_entregados, total_pendientes, total_importe
+
+def asegurar_archivo_cierre(fecha=None):
+    """Asegura que el cierre tenga archivo y totales reales. Corrige cierres manuales antiguos."""
+    fecha = clean_text(fecha) or hoy_iso()
+    filename, path, total_consumos, total_entregados, total_pendientes, total_importe = generar_excel_cierre(fecha)
+    cierre = q_one("SELECT * FROM cierres WHERE fecha=?", (fecha,))
+    if cierre:
+        q_exec("""
+            UPDATE cierres
+            SET total_consumos=?, total_entregados=?, total_pendientes=?, total_importe=?, archivo_excel=COALESCE(NULLIF(archivo_excel,''), ?)
+            WHERE fecha=?
+        """, (total_consumos, total_entregados, total_pendientes, total_importe, filename, fecha))
+    return filename, path, total_consumos, total_entregados, total_pendientes, total_importe
+
 # =========================
 # RUTAS
 # =========================
@@ -3345,15 +3380,17 @@ def topbar(title, subtitle="Resumen general del sistema"):
 def cerrar_dia_manual():
     fecha = hoy_iso()
     if dia_cerrado(fecha):
-        flash("El día ya estaba cerrado.", "error")
+        # Si estaba cerrado manualmente sin archivo, lo corrige al instante.
+        asegurar_archivo_cierre(fecha)
+        flash("El día ya estaba cerrado. Se validó/generó el archivo de reporte.", "ok")
     else:
+        filename, path, total_consumos, total_entregados, total_pendientes, total_importe = generar_excel_cierre(fecha)
         q_exec("""
             INSERT INTO cierres(fecha,cerrado_por,total_consumos,total_entregados,total_pendientes,total_importe,archivo_excel,correo_destino,correo_estado)
             VALUES(?,?,?,?,?,?,?,?,?)
-        """, (fecha, session["user"], 0, 0, 0, 0, "", "", "CIERRE MANUAL"))
-        flash("Día cerrado manualmente por administrador.", "ok")
-    return redirect(request.referrer or url_for("dashboard"))
-
+        """, (fecha, session["user"], total_consumos, total_entregados, total_pendientes, total_importe, filename, "", "CIERRE MANUAL - ARCHIVO GENERADO"))
+        flash(f"Día cerrado manualmente. Reporte generado: {filename}", "ok")
+    return redirect(request.referrer or url_for("cierre_dia"))
 
 @app.route("/abrir_dia_manual")
 @login_required
@@ -4939,10 +4976,58 @@ def entregas():
     }}
     async function abrirScannerEntrega(){{
       const box=document.getElementById('qr_entrega_box'); if(box) box.style.display='block';
-      if(typeof Html5Qrcode==='undefined'){{ entregaToast('No cargó librería de cámara. Digita el DNI o recarga.', false); return; }}
-      try{{ cerrarScannerEntrega(); qrEntrega=new Html5Qrcode('qr_entrega_reader'); await qrEntrega.start({{facingMode:'environment'}}, {{fps:12, qrbox:260}}, txt=>{{ const dni=onlyDniEntrega(txt); if(dni.length===8){{ document.getElementById('dni_entrega').value=dni; buscarTrabajadorEntrega(true); }} }}); }}catch(e){{ entregaToast('No se pudo abrir cámara. Revisa permisos del navegador.', false); }}
+      const reader=document.getElementById('qr_entrega_reader');
+      if(reader) reader.innerHTML='<div style="text-align:center;font-weight:900">📷 Activando cámara...</div><div id="qr_entrega_live" style="width:100%;max-width:360px;margin:auto"></div><video id="qr_entrega_video" playsinline muted autoplay style="display:none;width:100%;max-width:360px;border-radius:14px;margin:auto"></video><canvas id="qr_entrega_canvas" style="display:none"></canvas>';
+      try{{ cerrarScannerEntrega(false); }}catch(e){{}}
+      if(typeof Html5Qrcode!=='undefined'){{
+        try{{
+          qrEntrega=new Html5Qrcode('qr_entrega_live');
+          await qrEntrega.start(
+            {{facingMode:{{ideal:'environment'}}}},
+            {{fps:15, qrbox:{{width:230,height:230}}, rememberLastUsedCamera:true}},
+            async txt=>{{ const dni=onlyDniEntrega(txt); if(dni.length===8){{ document.getElementById('dni_entrega').value=dni; await buscarTrabajadorEntrega(true); }} }}
+          );
+          entregaToast('Cámara de entregas activada.', true);
+          return;
+        }}catch(e){{ console.warn('html5-qrcode entrega falló, usando cámara nativa', e); }}
+      }}
+      try{{
+        const video=document.getElementById('qr_entrega_video'); const canvas=document.getElementById('qr_entrega_canvas');
+        const live=document.getElementById('qr_entrega_live'); if(live) live.innerHTML='<b>Respaldo con cámara nativa...</b>';
+        const stream=await navigator.mediaDevices.getUserMedia({{video:{{facingMode:{{ideal:'environment'}}}}, audio:false}});
+        video.srcObject=stream; video.style.display='block'; await video.play();
+        qrEntrega={{stream:stream, stopped:false}};
+        let detector=null;
+        if('BarcodeDetector' in window){{ try{{ detector=new BarcodeDetector({{formats:['qr_code','code_128','code_39','ean_13','ean_8','itf','codabar','upc_a','upc_e','pdf417']}}); }}catch(e){{}} }}
+        entregaToast('Cámara de entregas activada.', true);
+        const loop=async()=>{{
+          if(!qrEntrega || qrEntrega.stopped) return;
+          try{{
+            if(detector){{
+              const codes=await detector.detect(video);
+              if(codes && codes.length){{ const dni=onlyDniEntrega(codes[0].rawValue||''); if(dni.length===8){{ document.getElementById('dni_entrega').value=dni; await buscarTrabajadorEntrega(true); }} }}
+            }} else if(window.jsQR && video.videoWidth){{
+              canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+              const ctx=canvas.getContext('2d'); ctx.drawImage(video,0,0,canvas.width,canvas.height);
+              const img=ctx.getImageData(0,0,canvas.width,canvas.height); const code=jsQR(img.data,img.width,img.height);
+              if(code && code.data){{ const dni=onlyDniEntrega(code.data); if(dni.length===8){{ document.getElementById('dni_entrega').value=dni; await buscarTrabajadorEntrega(true); }} }}
+            }}
+          }}catch(e){{}}
+          setTimeout(()=>requestAnimationFrame(loop), 180);
+        }};
+        requestAnimationFrame(loop);
+      }}catch(e){{ entregaToast('No se pudo abrir cámara. Permite cámara, usa Chrome y HTTPS.', false); }}
     }}
-    function cerrarScannerEntrega(){{ try{{ if(qrEntrega){{ qrEntrega.stop().catch(()=>{{}}); qrEntrega.clear(); qrEntrega=null; }} }}catch(e){{}} const box=document.getElementById('qr_entrega_box'); if(box) box.style.display='none'; }}
+    function cerrarScannerEntrega(ocultar=true){{
+      try{{
+        if(qrEntrega){{
+          if(typeof qrEntrega.stop==='function'){{ qrEntrega.stop().catch(()=>{{}}).finally(()=>{{ try{{qrEntrega.clear();}}catch(e){{}} }}); }}
+          if(qrEntrega.stream){{ qrEntrega.stopped=true; qrEntrega.stream.getTracks().forEach(t=>t.stop()); }}
+        }}
+      }}catch(e){{}}
+      qrEntrega=null;
+      if(ocultar!==false){{ const box=document.getElementById('qr_entrega_box'); if(box) box.style.display='none'; const reader=document.getElementById('qr_entrega_reader'); if(reader) reader.innerHTML=''; }}
+    }}
     document.addEventListener('DOMContentLoaded',()=>{{ const r=document.getElementById('responsable_entrega'); const rp=document.getElementById('responsable_entrega_post'); if(r&&rp) r.addEventListener('input',()=>rp.value=r.value.toUpperCase()); }});
     </script>
     """
@@ -5218,25 +5303,7 @@ def cierre_dia():
             return redirect(url_for("cierre_dia"))
 
         correo = clean_text(request.form.get("correo"))
-        pedidos = q_all("SELECT * FROM consumos WHERE fecha=? ORDER BY area,trabajador", (fecha,))
-        df = pd.DataFrame([dict(p) for p in pedidos])
-        if df.empty:
-            df = pd.DataFrame(columns=["fecha","hora","dni","trabajador","empresa","area","tipo","cantidad","precio_unitario","total","estado","creado_por"])
-
-        resumen_area = df.groupby(["area","estado"], as_index=False).agg(cantidad=("cantidad","sum"), total=("total","sum")) if not df.empty else pd.DataFrame()
-        resumen_usuario = df.groupby(["creado_por"], as_index=False).agg(consumos=("dni","count"), total=("total","sum")) if not df.empty else pd.DataFrame()
-
-        filename = f"cierre_comedor_{fecha.replace('-','_')}.xlsx"
-        path = os.path.join(REPORT_DIR, filename)
-        with pd.ExcelWriter(path, engine="openpyxl") as writer:
-            df.to_excel(writer, sheet_name="DETALLE_DIA", index=False)
-            resumen_area.to_excel(writer, sheet_name="RESUMEN_AREA", index=False)
-            resumen_usuario.to_excel(writer, sheet_name="RESUMEN_USUARIOS", index=False)
-
-        total_consumos = len(pedidos)
-        total_entregados = sum(1 for p in pedidos if p["estado"] == "ENTREGADO")
-        total_pendientes = total_consumos - total_entregados
-        total_importe = sum(float(p["total"] or 0) for p in pedidos)
+        filename, path, total_consumos, total_entregados, total_pendientes, total_importe = generar_excel_cierre(fecha)
 
         estado_correo = send_report_email(
             correo,
@@ -5262,11 +5329,13 @@ def cierre_dia():
     ultimo = q_one("SELECT hora FROM consumos WHERE fecha=? ORDER BY hora DESC,id DESC LIMIT 1", (fecha,))
     cerrado_html = ""
     if cerrado:
+        filename, _, _, _, _, _ = asegurar_archivo_cierre(fecha)
+        cerrado = dia_cerrado(fecha)
         cerrado_html = f"""
         <div class="card">
           <span class="badge off">DÍA CERRADO</span>
-          <p>Archivo generado: <b>{cerrado['archivo_excel']}</b></p>
-          <a class="btn btn-blue" href="{url_for('descargar_cierre', filename=cerrado['archivo_excel'])}">Descargar reporte</a>
+          <p>Archivo generado: <b>{filename}</b></p>
+          <a class="btn btn-blue" href="{url_for('descargar_cierre', filename=filename)}">Descargar reporte</a>
         </div>
         """
     usuarios_html = "".join([
@@ -5342,20 +5411,22 @@ def reportes():
 
     rows = q_all(f"SELECT * FROM cierres WHERE {where} ORDER BY fecha DESC LIMIT 200", tuple(final_params))
 
-    tabla = "".join([
-        f"""
+    filas = []
+    for r in rows:
+        filename, _, total_consumos, _, _, total_importe = asegurar_archivo_cierre(r['fecha'])
+        archivo_btn = f'<a class="btn btn-blue" href="{url_for("descargar_cierre", filename=filename)}">Descargar</a>' if filename else '-'
+        filas.append(f"""
         <tr>
           <td>{fecha_peru_txt(r['fecha'])}</td>
-          <td>{r['total_consumos']}</td>
-          <td>{money(r['total_importe'])}</td>
+          <td>{total_consumos}</td>
+          <td>{money(total_importe)}</td>
           <td>{r['cerrado_por']}</td>
           <td>{r['correo_destino'] or '-'}</td>
           <td>{r['correo_estado'] or '-'}</td>
-          <td>{('<a class="btn btn-blue" href="' + url_for('descargar_cierre', filename=r['archivo_excel']) + '">Descargar</a>') if r['archivo_excel'] else '-'}</td>
+          <td>{archivo_btn}</td>
         </tr>
-        """
-        for r in rows
-    ]) or "<tr><td colspan='7'>Sin reportes en el rango seleccionado.</td></tr>"
+        """)
+    tabla = "".join(filas) or "<tr><td colspan='7'>Sin reportes en el rango seleccionado.</td></tr>"
 
     html = topbar("Reportes", "Historial de cierres y reportes generados") + filtro_bar(url_for("reportes"), fecha_inicio, fecha_fin, buscar) + f"""
     <div class="card">
@@ -5650,8 +5721,22 @@ def exportar_consumos():
 @app.route("/descargar_cierre/<path:filename>")
 @login_required
 def descargar_cierre(filename):
-    safe = os.path.basename(filename)
+    safe = os.path.basename(filename or "")
+    if not safe:
+        flash("No hay archivo de cierre para descargar.", "error")
+        return redirect(url_for("reportes"))
     path = os.path.join(REPORT_DIR, safe)
+    if not os.path.exists(path):
+        # Regenera automáticamente desde la fecha incluida en el nombre cierre_comedor_YYYY_MM_DD.xlsx
+        fecha = None
+        m = re.search(r"(\d{4})_(\d{2})_(\d{2})", safe)
+        if m:
+            fecha = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+        if fecha:
+            asegurar_archivo_cierre(fecha)
+    if not os.path.exists(path):
+        flash("El archivo no existe. Se intentó regenerar, pero no se encontró data para ese cierre.", "error")
+        return redirect(url_for("reportes"))
     return send_file(path, as_attachment=True)
 
 
