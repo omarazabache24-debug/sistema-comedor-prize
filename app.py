@@ -2797,6 +2797,72 @@ body.sidebar-collapsed .content{width:100%!important;max-width:none!important}
 @media(max-width:780px){.sidebar-toggle-floating{display:none!important}.sidebar-mini-toggle{display:block!important}}
 .modo-prueba-box{margin-top:12px;padding:12px;border-radius:18px;background:rgba(250,204,21,.10);border:1px solid rgba(250,204,21,.35);color:#fff}.modo-prueba-box b{color:#fde68a}.modo-prueba-box form{display:grid;gap:8px;margin-top:8px}.modo-prueba-box button{min-height:38px!important;border-radius:13px!important;font-size:12px!important;font-weight:950!important}
 
+
+
+/* ===== MOBILE PRO CONSUMOS: pantalla operativa compacta ===== */
+.mobile-user-tabs{display:none}
+@media(max-width:780px){
+  .app-shell{padding-top:106px!important;}
+  .mobile-doc-header{height:54px!important;padding:0 14px!important;}
+  .mobile-doc-header .doc-title{font-size:17px!important;}
+  .mobile-doc-header .doc-menu{display:none!important;}
+  .mobile-user-tabs{position:fixed;top:54px;left:0;right:0;height:52px;z-index:1000;display:grid;grid-template-columns:1fr 1fr .82fr;gap:7px;padding:7px 8px;background:#0b1118;border-bottom:1px solid rgba(255,255,255,.10);box-shadow:0 8px 20px rgba(0,0,0,.28)}
+  .mobile-user-tabs a{display:flex;align-items:center;justify-content:center;text-decoration:none;color:#eaf6ff;background:#0b3448;border:1px solid rgba(255,255,255,.12);border-radius:13px;font-weight:950;font-size:12px;letter-spacing:.2px;min-height:36px;white-space:nowrap;box-shadow:none!important}
+  .mobile-user-tabs a.on{background:linear-gradient(135deg,#16a34a,#0284c7);color:#fff;border-color:rgba(255,255,255,.22)}
+  .mobile-user-tabs a.logout{background:#7f1d1d;color:#fff}
+  .fixed-prize-sidebar,.sidebar-toggle-floating,.sidebar-mini-toggle,.panel-right{display:none!important;}
+  .main-layout{grid-template-columns:1fr!important;margin-left:0!important;width:100%!important;}
+  .content{padding:8px 9px 24px!important;background:#151719!important;}
+  .card{border-radius:18px!important;padding:12px!important;margin:10px 0!important;box-shadow:0 8px 20px rgba(0,0,0,.18)!important;}
+  .card h3{font-size:18px!important;margin:0 0 10px!important;line-height:1.15!important;}
+  .form-grid{display:grid!important;grid-template-columns:1fr!important;gap:9px!important;}
+  .form-grid input,.form-grid select,.form-grid textarea{min-height:46px!important;height:auto!important;padding:10px 12px!important;border-radius:14px!important;font-size:15px!important;line-height:1.2!important;color:#0f172a!important;background:#fff!important;}
+  .form-grid input::placeholder,.form-grid textarea::placeholder{font-size:14px!important;color:#64748b!important;opacity:1!important;white-space:nowrap!important;}
+  .form-grid input[readonly],.form-grid input:disabled,.form-grid select:disabled{background:#e5e7eb!important;color:#334155!important;opacity:1!important;}
+  .worker-name-field{font-size:14px!important;font-weight:900!important;overflow:hidden!important;text-overflow:ellipsis!important;}
+  .form-grid button,.form-grid .btn,.btn-blue,.btn-green,.btn-red,#btn_submit_consumo{min-height:46px!important;border-radius:14px!important;padding:10px 14px!important;font-size:15px!important;font-weight:950!important;}
+  #indicador_masivo_principal{padding:10px 11px!important;border-radius:14px!important;font-size:12px!important;line-height:1.25!important;margin:6px 0 9px!important;}
+  #indicador_masivo_principal span:first-child{display:block!important;max-width:100%!important;}
+  #indicador_masivo_contador{padding:5px 10px!important;font-size:12px!important;}
+  #contador_lecturas_box{grid-template-columns:34px 1fr 70px!important;gap:8px!important;padding:10px!important;border-radius:15px!important;margin:6px 0 10px!important;}
+  #contador_lecturas_box div{line-height:1.15!important;}
+  #contador_lecturas_box [style*="font-size:15px"]{font-size:13px!important;}
+  #contador_lecturas_box [style*="font-size:12px"]{font-size:11px!important;}
+  #contador_lecturas_hoy{font-size:22px!important;}
+  .label-lote-final{min-height:44px!important;padding:10px 12px!important;border-radius:14px!important;font-size:15px!important;display:flex!important;align-items:center!important;gap:8px!important;}
+  .lote-dios-panel{display:none!important;}
+  .muted.small{font-size:11px!important;line-height:1.35!important;}
+  .table-head{display:grid!important;grid-template-columns:1fr!important;gap:10px!important;align-items:stretch!important;padding:12px!important;border-radius:16px!important;}
+  .table-head h3{font-size:17px!important;margin:0!important;}
+  .table-head .btn{width:100%!important;min-height:44px!important;}
+  .table-wrap{overflow:visible!important;max-height:none!important;border:0!important;background:transparent!important;}
+  #tabla_consumos_principal,#tabla_consumos_principal thead,#tabla_consumos_principal tbody,#tabla_consumos_principal tr,#tabla_consumos_principal td{display:block!important;width:100%!important;}
+  #tabla_consumos_principal thead{display:none!important;}
+  #tabla_consumos_principal tr{margin:10px 0!important;padding:12px!important;border-radius:16px!important;background:#fff!important;border-left:6px solid #22c55e!important;box-shadow:0 8px 18px rgba(0,0,0,.16)!important;}
+  #tabla_consumos_principal td{border:0!important;padding:4px 0!important;font-size:14px!important;color:#334155!important;line-height:1.22!important;display:grid!important;grid-template-columns:108px minmax(0,1fr)!important;gap:8px!important;align-items:start!important;word-break:break-word!important;}
+  #tabla_consumos_principal td::before{font-weight:950;color:#64748b;content:'';}
+  #tabla_consumos_principal td:nth-child(1){display:none!important;}
+  #tabla_consumos_principal td:nth-child(2)::before{content:'Fecha';}
+  #tabla_consumos_principal td:nth-child(3)::before{content:'Hora';}
+  #tabla_consumos_principal td:nth-child(4)::before{content:'DNI';}
+  #tabla_consumos_principal td:nth-child(5)::before{content:'Nombre';}
+  #tabla_consumos_principal td:nth-child(6)::before{content:'Área';}
+  #tabla_consumos_principal td:nth-child(7)::before{content:'Tipo';}
+  #tabla_consumos_principal td:nth-child(8)::before{content:'Comedor';}
+  #tabla_consumos_principal td:nth-child(9)::before{content:'Fundo';}
+  #tabla_consumos_principal td:nth-child(10)::before{content:'Resp.';}
+  #tabla_consumos_principal td:nth-child(11)::before{content:'Cant.';}
+  #tabla_consumos_principal td:nth-child(12)::before{content:'P. Unit.';}
+  #tabla_consumos_principal td:nth-child(13)::before{content:'Total';}
+  #tabla_consumos_principal td:nth-child(14)::before{content:'Estado';}
+  #tabla_consumos_principal td:nth-child(15)::before{content:'Quitar';}
+  #tabla_consumos_principal td:nth-child(5){font-weight:950!important;color:#0f172a!important;font-size:15px!important;}
+  #tabla_consumos_principal td:nth-child(15) form{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important;width:100%!important;}
+  #tabla_consumos_principal td:nth-child(15) input{width:100%!important;min-height:38px!important;border-radius:10px!important;}
+  #tabla_consumos_principal td:nth-child(15) button{min-height:38px!important;border-radius:10px!important;}
+  .topbar,.hero{display:none!important;}
+}
+
 </style>
 <script src="https://unpkg.com/html5-qrcode.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js" crossorigin="anonymous"></script>
@@ -2813,8 +2879,13 @@ body.sidebar-collapsed .content{width:100%!important;max-width:none!important}
   <div class="mobile-doc-header">
     <button type="button" class="doc-back" onclick="history.back()">←</button>
     <div class="doc-title">Control documental</div>
-    <button type="button" class="doc-menu" onclick="toggleSidebarPrize()">☰</button>
   </div>
+
+  <nav class="mobile-user-tabs">
+    <a class="{{'on' if page=='consumos'}}" href="{{url_for('consumos')}}">🍽️ CONSUMOS</a>
+    <a class="{{'on' if page=='entregas'}}" href="{{url_for('entregas')}}">🚚 ENTREGAS</a>
+    <a class="logout" href="{{url_for('logout')}}">🚪 SALIR</a>
+  </nav>
 
   <header class="hero">
     <div class="hero-title-only">
@@ -2849,8 +2920,8 @@ body.sidebar-collapsed .content{width:100%!important;max-width:none!important}
         {% if session.get('role') == 'admin' %}
         <a class="{{'on' if page=='reportes'}}" href="{{url_for('reportes')}}"><span class="nav-ico">📁</span>Reportes <span class="pill correo">CORREO</span></a>
         {% endif %}
-        <a class="{{'on' if page=='cierre'}}" href="{{url_for('cierre_dia')}}"><span class="nav-ico">📁</span>Cerrar día</a>
         {% if session.get('role') == 'admin' %}
+        <a class="{{'on' if page=='cierre'}}" href="{{url_for('cierre_dia')}}"><span class="nav-ico">📁</span>Cerrar día</a>
         <a class="{{'on' if page=='carga'}}" href="{{url_for('carga_masiva')}}"><span class="nav-ico">📥</span>Carga Masiva</a>
         <a class="{{'on' if page=='config'}}" href="{{url_for('configuracion')}}"><span class="nav-ico">⚙️</span>Config. / Usuarios</a>
         {% endif %}
