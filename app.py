@@ -531,7 +531,7 @@ def opciones_comedor():
 
 def opciones_fundo():
     # Fundos oficiales según relación enviada
-    return ["Vivadis", "Santa Teresa", "Ayllu Allpa"]
+    return ["Vivadis", "Santa Teresa", "Ayllu Allpa", "Arena Azul"]
 
 
 def normalize_columns(cols):
@@ -2863,6 +2863,48 @@ body.sidebar-collapsed .content{width:100%!important;max-width:none!important}
   .topbar,.hero{display:none!important;}
 }
 
+
+/* ===== FIX CELULAR 21/05: CONSUMOS COMPACTO + FILTROS VISIBLES ===== */
+@media(max-width:780px){
+  .content{padding:6px 8px 18px!important;}
+  .card{padding:10px!important;margin:8px 0!important;border-radius:16px!important;}
+  .card:has(#form_consumo){padding:9px!important;}
+  .card:has(#form_consumo) h3{display:none!important;}
+  #indicador_masivo_principal{display:none!important;}
+  #contador_lecturas_box{grid-template-columns:28px 1fr 62px!important;padding:8px 9px!important;margin:4px 0 8px!important;border-radius:13px!important;}
+  #contador_lecturas_box [style*="font-size:25px"]{font-size:20px!important;}
+  #contador_lecturas_box [style*="font-size:15px"]{font-size:12px!important;}
+  #contador_lecturas_box [style*="font-size:12px"]{font-size:10px!important;}
+  #contador_lecturas_hoy{font-size:20px!important;}
+  #form_consumo.form-grid{grid-template-columns:1fr 1fr!important;gap:7px!important;}
+  #form_consumo input,#form_consumo select,#form_consumo textarea{min-height:42px!important;height:42px!important;border-radius:13px!important;padding:8px 10px!important;font-size:14px!important;border:1px solid #dbe4ee!important;background:#fff!important;color:#0f172a!important;box-shadow:0 3px 10px rgba(2,8,23,.12)!important;}
+  #form_consumo input::placeholder{font-size:13px!important;color:#64748b!important;opacity:1!important;}
+  #dni_consumo,#nombre_trabajador,#info_trabajador_consumo,#qr-reader,#responsable_consumo,#grupo_consumo,.label-lote-final,#btn_submit_consumo,#form_consumo>a.btn{grid-column:1/-1!important;}
+  #form_consumo button{min-height:42px!important;border-radius:13px!important;font-size:14px!important;padding:8px 10px!important;}
+  #form_consumo button.btn-blue{grid-column:1/-1!important;}
+  #form_consumo select[name="fundo"],#form_consumo select[name="tipo"],#form_consumo select[name="comedor"],#form_consumo input[name="cantidad"],#form_consumo input[name="precio_unitario"]{grid-column:auto!important;}
+  #form_consumo select[name="comedor"]{grid-column:1/-1!important;}
+  .label-lote-final{min-height:42px!important;height:42px!important;padding:8px 10px!important;margin:0!important;font-size:14px!important;border-radius:13px!important;}
+  #btn_submit_consumo{min-height:44px!important;margin-top:2px!important;}
+  .muted.small{font-size:10px!important;margin-top:6px!important;}
+
+  .filter-card{padding:10px!important;margin:8px 0!important;background:#f8fafc!important;border-radius:16px!important;}
+  .filter-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important;align-items:end!important;}
+  .filter-grid>div:nth-child(3){grid-column:1/-1!important;}
+  .filter-grid label{font-size:11px!important;color:#475569!important;margin-bottom:3px!important;}
+  .filter-grid input{width:100%!important;min-height:42px!important;height:42px!important;border-radius:12px!important;padding:8px 10px!important;background:#fff!important;color:#0f172a!important;-webkit-text-fill-color:#0f172a!important;border:1px solid #cbd5e1!important;box-shadow:none!important;font-size:13px!important;color-scheme:light!important;}
+  .filter-grid input[type="date"]::-webkit-datetime-edit{color:#0f172a!important;opacity:1!important;}
+  .filter-grid input[type="date"]::-webkit-calendar-picker-indicator{opacity:1!important;filter:none!important;}
+  .filter-grid button,.filter-grid .btn{min-height:42px!important;height:42px!important;border-radius:12px!important;font-size:14px!important;}
+
+  .table-head{padding:10px!important;border-radius:14px!important;}
+  .table-head h3{font-size:15px!important;line-height:1.18!important;}
+  #tabla_consumos_principal tr{margin:8px 0!important;padding:10px!important;border-radius:14px!important;}
+  #tabla_consumos_principal td{grid-template-columns:78px minmax(0,1fr)!important;font-size:12px!important;gap:6px!important;padding:3px 0!important;}
+  #tabla_consumos_principal td::before{font-size:11px!important;}
+  #tabla_consumos_principal td:nth-child(5){font-size:13px!important;}
+}
+
 </style>
 <script src="https://unpkg.com/html5-qrcode.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js" crossorigin="anonymous"></script>
@@ -3332,6 +3374,9 @@ const COMEDORES_POR_FUNDO = {
   "Ayllu Allpa": [
     "Comedor 20", "Comedor 21", "Comedor 22", "Comedor 23",
     "Comedor 24", "Comedor 25", "Comedor 26", "Comedor 27"
+  ],
+  "Arena Azul": [
+    "Comedor Arena Azul"
   ]
 };
 
@@ -3865,7 +3910,7 @@ def consumos():
         <input id="responsable_consumo" name="responsable" placeholder="RESPONSABLE (OBLIGATORIO MAYÚSCULAS)" required style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase(); actualizarEstadoLoteResponsable();" {disabled}>
         <input type="number" name="cantidad" min="1" value="1" {disabled}>
         <input type="number" step="0.01" name="precio_unitario" value="6.50" {disabled}>
-        <input name="observacion" placeholder="REGISTRAR TU GRUPO" required oninput="this.value=this.value.toUpperCase()" {disabled}>
+        <input id="grupo_consumo" name="observacion" placeholder="REGISTRAR TU GRUPO (OBLIGATORIO - DIGITAR)" required autocomplete="off" oninput="this.value=this.value.toUpperCase()" {disabled}>
         <label class="label-lote-final"><input type="checkbox" id="modo_lote" name="modo_lote" value="1" checked onchange="toggleLote()"> Registro masivo / lote</label>
         {('<label style="font-weight:900"><input type="checkbox" name="adicional" value="1"> Consumo adicional</label>' if session.get('role')=='admin' else '')}
         <div id="lote_panel" class="lote-dios-panel">
@@ -4092,16 +4137,19 @@ def consumos():
       if(navigator.vibrate) navigator.vibrate(90);
     }}
     function avisoMovil(msg, ok=true){{
+      try{{ if(document.activeElement && ['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) document.activeElement.blur(); }}catch(e){{}}
       const div = document.createElement('div');
       div.className = 'prize-toast-msg';
       div.textContent = msg;
       const visibles = document.querySelectorAll('.prize-toast-msg').length;
-      const topPx = 12 + (visibles * 58);
-      div.style.position='fixed'; div.style.left='10px'; div.style.right='10px'; div.style.top='calc(env(safe-area-inset-top,0px) + '+topPx+'px)'; div.style.bottom='auto';
-      div.style.zIndex='2147483647'; div.style.padding='12px 14px'; div.style.borderRadius='12px';
-      div.style.fontWeight='950'; div.style.color='white'; div.style.textAlign='center'; div.style.boxShadow='0 12px 30px rgba(0,0,0,.35)'; div.style.pointerEvents='none';
-      div.style.background = ok ? '#006b1e' : '#a40000'; div.style.border='1px solid rgba(255,255,255,.18)'; div.style.fontSize='13px'; div.style.lineHeight='1.2';
-      document.body.appendChild(div); setTimeout(()=>div.remove(), 2300);
+      const vv = window.visualViewport;
+      const baseTop = vv ? Math.max(8, vv.offsetTop + 10) : 12;
+      const topPx = baseTop + (visibles * 62);
+      div.style.position='fixed'; div.style.left='10px'; div.style.right='10px'; div.style.top=topPx+'px'; div.style.bottom='auto';
+      div.style.zIndex='2147483647'; div.style.padding='13px 14px'; div.style.borderRadius='14px';
+      div.style.fontWeight='950'; div.style.color='white'; div.style.textAlign='center'; div.style.boxShadow='0 14px 34px rgba(0,0,0,.42)'; div.style.pointerEvents='none';
+      div.style.background = ok ? '#008f39' : '#b91c1c'; div.style.border='2px solid rgba(255,255,255,.25)'; div.style.fontSize='14px'; div.style.lineHeight='1.25';
+      document.body.appendChild(div); setTimeout(()=>div.remove(), 3200);
     }}
     async function validarDni(dni){{
       dni = soloDni(dni);
@@ -4565,14 +4613,14 @@ def consumos():
         }}
         return p;
       }}
-      function limpiarDniParaSiguienteFix(){{
+      function limpiarDniParaSiguienteFix(refocus=true){{
         const inp = document.getElementById('dni_consumo');
         const out = document.getElementById('nombre_trabajador');
         const info = document.getElementById('info_trabajador_consumo');
         if(inp) inp.value = '';
         if(out) out.value = '';
         if(info){{ info.style.display='none'; info.innerHTML=''; }}
-        setTimeout(()=>inp?.focus(), 80);
+        if(refocus) setTimeout(()=>inp?.focus(), 180);
       }}
       function prependConsumoGuardadoFix(rowHtml){{
         const tbody = document.getElementById('tbody_consumos_principal');
@@ -4611,12 +4659,12 @@ def consumos():
           }}else{{
             if(ind){{ ind.style.display='block'; ind.textContent = '❌ ' + (data.msg || 'No se pudo guardar'); }}
             toastFix(data.msg || 'No se pudo guardar el consumo.', false);
-            limpiarDniParaSiguienteFix();
+            limpiarDniParaSiguienteFix(false);
           }}
         }}catch(e){{
           if(ind){{ ind.style.display='block'; ind.textContent='❌ Error de conexión al guardar.'; }}
           toastFix('Error de conexión al guardar consumo.', false);
-          limpiarDniParaSiguienteFix();
+          limpiarDniParaSiguienteFix(false);
         }}finally{{
           setTimeout(()=>{{ autoGuardandoFix=false; }}, 250);
         }}
