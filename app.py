@@ -2906,6 +2906,39 @@ body.sidebar-collapsed .content{width:100%!important;max-width:none!important}
   #tabla_consumos_principal td:nth-child(5){font-size:13px!important;}
 }
 
+
+/* ===== AJUSTE PRO CELULAR 22/05: CAMPOS COMPACTOS Y ORDENADOS EN CONSUMIDOR ===== */
+@media(max-width:780px){
+  .content{padding:5px 7px 16px!important;}
+  .card:has(#form_consumo){padding:8px!important;margin:6px 0!important;border-radius:15px!important;}
+  #contador_lecturas_box{grid-template-columns:24px 1fr 56px!important;gap:7px!important;padding:7px 8px!important;margin:2px 0 7px!important;border-radius:12px!important;}
+  #contador_lecturas_box [style*="font-size:25px"]{font-size:18px!important;}
+  #contador_lecturas_box [style*="font-size:15px"]{font-size:11px!important;line-height:1.05!important;}
+  #contador_lecturas_box [style*="font-size:12px"]{font-size:9.5px!important;line-height:1.1!important;}
+  #contador_lecturas_hoy{font-size:18px!important;}
+  #contador_lecturas_box > div:last-child{min-width:50px!important;padding:6px 8px!important;border-radius:12px!important;}
+  #form_consumo.form-grid{display:grid!important;grid-template-columns:0.82fr 1.18fr!important;gap:6px!important;align-items:stretch!important;}
+  #form_consumo input,#form_consumo select,#form_consumo textarea{min-height:38px!important;height:38px!important;border-radius:12px!important;padding:6px 9px!important;font-size:13.5px!important;line-height:1.1!important;box-shadow:0 2px 8px rgba(2,8,23,.10)!important;}
+  #form_consumo input::placeholder{font-size:12.5px!important;letter-spacing:-.1px!important;}
+  #form_consumo input[name="fecha"]{grid-column:1/2!important;}
+  #responsable_consumo{grid-column:1/-1!important;}
+  #fundo_select{grid-column:1/-1!important;}
+  #grupo_consumo{grid-column:1/-1!important;}
+  #comedor_select{grid-column:1/-1!important;}
+  #dni_consumo{grid-column:1/-1!important;}
+  #nombre_trabajador{grid-column:1/-1!important;background:#eef2f7!important;color:#475569!important;font-size:13px!important;font-weight:900!important;}
+  #form_consumo button{min-height:38px!important;height:38px!important;border-radius:12px!important;font-size:13.5px!important;padding:7px 9px!important;}
+  #form_consumo button.btn-blue{grid-column:1/-1!important;}
+  .label-lote-final{min-height:38px!important;height:38px!important;padding:7px 9px!important;font-size:13.5px!important;border-radius:12px!important;}
+  #btn_submit_consumo{min-height:40px!important;height:40px!important;font-size:14px!important;border-radius:12px!important;}
+  #form_consumo .muted.small{font-size:9.5px!important;line-height:1.2!important;margin-top:3px!important;}
+}
+@media(max-width:380px){
+  #form_consumo input,#form_consumo select,#form_consumo textarea{font-size:13px!important;padding-left:8px!important;padding-right:8px!important;}
+  #form_consumo input::placeholder{font-size:12px!important;}
+  .mobile-user-tabs a{font-size:11px!important;}
+}
+
 </style>
 <script src="https://unpkg.com/html5-qrcode.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js" crossorigin="anonymous"></script>
@@ -3895,14 +3928,14 @@ def consumos():
       </div>
       <form method="post" class="form-grid" id="form_consumo" onsubmit="return validarAntesEnviar(event)">
         <input type="date" name="fecha" value="{fecha}" onchange="window.location='{url_for('consumos')}?fecha=' + this.value" title="Elige una fecha para consultar. Solo hoy permite registrar." max="{hoy_iso()}">
-        <input id="responsable_consumo" name="responsable" placeholder="RESPONSABLE (OBLIGATORIO MAYÚSCULAS)" required style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase(); actualizarEstadoLoteResponsable();" {disabled}>
+        <input id="responsable_consumo" name="responsable" placeholder="RESPONSABLE *" required style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase(); actualizarEstadoLoteResponsable();" {disabled}>
         <select id="fundo_select" name="fundo" {disabled}>
           {''.join([f'<option value="{f}">{f}</option>' for f in opciones_fundo()])}
         </select>
-        <input id="grupo_consumo" name="observacion" placeholder="REGISTRAR GRUPO (OBLIGATORIO - DIGITAR)" required autocomplete="off" oninput="this.value=this.value.toUpperCase()" {disabled}>
-        <input id="comedor_select" name="comedor" placeholder="DIGITAR COMEDOR" value="Comedor 01" required autocomplete="off" oninput="this.value=this.value.toUpperCase()" {disabled}>
+        <input id="grupo_consumo" name="observacion" placeholder="GRUPO * (DIGITAR)" required autocomplete="off" oninput="this.value=this.value.toUpperCase()" {disabled}>
+        <input id="comedor_select" name="comedor" placeholder="COMEDOR (DIGITAR)" value="Comedor 01" required autocomplete="off" oninput="this.value=this.value.toUpperCase()" {disabled}>
         <input id="dni_consumo" name="dni" placeholder="Escanear o digitar DNI" required autofocus inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" enterkeyhint="next" oninput="dniInputHandler()" onkeyup="dniInputHandler()" onchange="dniInputHandler()" {disabled}>
-        <input id="nombre_trabajador" class="worker-name-field" placeholder="Nombre aparecerá automáticamente al digitar DNI" readonly title="Nombre completo del trabajador" {disabled}>
+        <input id="nombre_trabajador" class="worker-name-field" placeholder="Nombre automático" readonly title="Nombre completo del trabajador" {disabled}>
         <button type="button" class="btn-blue" onclick="buscarTrabajadorConsumo(true)" {disabled}>🔎 Buscar trabajador</button>
         <button type="button" id="btn_qr" class="btn-blue" onclick="abrirScannerQR()" {disabled}>📷 Cámara QR / Barras</button>
         <div id="info_trabajador_consumo" style="display:none;grid-column:1/-1;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:14px;padding:12px;font-weight:900;color:#14532d"></div>
