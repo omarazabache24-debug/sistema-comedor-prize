@@ -2879,11 +2879,12 @@ body.sidebar-collapsed .content{width:100%!important;max-width:none!important}
   #form_consumo.form-grid{grid-template-columns:1fr 1fr!important;gap:7px!important;}
   #form_consumo input,#form_consumo select,#form_consumo textarea{min-height:42px!important;height:42px!important;border-radius:13px!important;padding:8px 10px!important;font-size:14px!important;border:1px solid #dbe4ee!important;background:#fff!important;color:#0f172a!important;box-shadow:0 3px 10px rgba(2,8,23,.12)!important;}
   #form_consumo input::placeholder{font-size:13px!important;color:#64748b!important;opacity:1!important;}
-  #dni_consumo,#nombre_trabajador,#info_trabajador_consumo,#qr-reader,#responsable_consumo,#grupo_consumo,.label-lote-final,#btn_submit_consumo,#form_consumo>a.btn{grid-column:1/-1!important;}
+  #dni_consumo,#nombre_trabajador,#info_trabajador_consumo,#qr-reader,#responsable_consumo,#grupo_consumo,#comedor_select,.label-lote-final,#btn_submit_consumo,#form_consumo>a.btn{grid-column:1/-1!important;}
   #form_consumo button{min-height:42px!important;border-radius:13px!important;font-size:14px!important;padding:8px 10px!important;}
   #form_consumo button.btn-blue{grid-column:1/-1!important;}
-  #form_consumo select[name="fundo"],#form_consumo select[name="tipo"],#form_consumo select[name="comedor"],#form_consumo input[name="cantidad"],#form_consumo input[name="precio_unitario"]{grid-column:auto!important;}
-  #form_consumo select[name="comedor"]{grid-column:1/-1!important;}
+  #form_consumo select[name="fundo"]{grid-column:1/-1!important;}
+  #form_consumo input[type="hidden"]{display:none!important;}
+  #form_consumo input[name="comedor"]{grid-column:1/-1!important;}
   .label-lote-final{min-height:42px!important;height:42px!important;padding:8px 10px!important;margin:0!important;font-size:14px!important;border-radius:13px!important;}
   #btn_submit_consumo{min-height:44px!important;margin-top:2px!important;}
   .muted.small{font-size:10px!important;margin-top:6px!important;}
@@ -3385,6 +3386,8 @@ function actualizarComedoresPorFundo(){
   const comedor = document.getElementById("comedor_select");
 
   if (!fundo || !comedor) return;
+  // El campo COMEDOR ahora es de digitación libre; no se amarra al fundo.
+  if (String(comedor.tagName || '').toUpperCase() !== 'SELECT') return;
 
   const fundoSeleccionado = (fundo.value || "").trim();
   const lista = COMEDORES_POR_FUNDO[fundoSeleccionado] || [];
@@ -3892,25 +3895,21 @@ def consumos():
       </div>
       <form method="post" class="form-grid" id="form_consumo" onsubmit="return validarAntesEnviar(event)">
         <input type="date" name="fecha" value="{fecha}" onchange="window.location='{url_for('consumos')}?fecha=' + this.value" title="Elige una fecha para consultar. Solo hoy permite registrar." max="{hoy_iso()}">
-        <input id="dni_consumo" name="dni" placeholder="Digite DNI o escanee QR/barras" required autofocus inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" enterkeyhint="next" oninput="dniInputHandler()" onkeyup="dniInputHandler()" onchange="dniInputHandler()" {disabled}>
+        <input id="responsable_consumo" name="responsable" placeholder="RESPONSABLE (OBLIGATORIO MAYÚSCULAS)" required style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase(); actualizarEstadoLoteResponsable();" {disabled}>
+        <select id="fundo_select" name="fundo" {disabled}>
+          {''.join([f'<option value="{f}">{f}</option>' for f in opciones_fundo()])}
+        </select>
+        <input id="grupo_consumo" name="observacion" placeholder="REGISTRAR GRUPO (OBLIGATORIO - DIGITAR)" required autocomplete="off" oninput="this.value=this.value.toUpperCase()" {disabled}>
+        <input id="comedor_select" name="comedor" placeholder="DIGITAR COMEDOR" value="Comedor 01" required autocomplete="off" oninput="this.value=this.value.toUpperCase()" {disabled}>
+        <input id="dni_consumo" name="dni" placeholder="Escanear o digitar DNI" required autofocus inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" enterkeyhint="next" oninput="dniInputHandler()" onkeyup="dniInputHandler()" onchange="dniInputHandler()" {disabled}>
         <input id="nombre_trabajador" class="worker-name-field" placeholder="Nombre aparecerá automáticamente al digitar DNI" readonly title="Nombre completo del trabajador" {disabled}>
         <button type="button" class="btn-blue" onclick="buscarTrabajadorConsumo(true)" {disabled}>🔎 Buscar trabajador</button>
         <button type="button" id="btn_qr" class="btn-blue" onclick="abrirScannerQR()" {disabled}>📷 Cámara QR / Barras</button>
         <div id="info_trabajador_consumo" style="display:none;grid-column:1/-1;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:14px;padding:12px;font-weight:900;color:#14532d"></div>
         <div id="qr-reader" style="display:none;width:420px;max-width:100%;margin:10px 0;grid-column:1/-1"></div>
-        <select id="fundo_select" name="fundo" onchange="actualizarComedoresPorFundo()" {disabled}>
-          {''.join([f'<option value="{f}">{f}</option>' for f in opciones_fundo()])}
-        </select>
-        <select name="tipo" {disabled}>
-          <option>Almuerzo</option>
-        </select>
-        <select id="comedor_select" name="comedor" {disabled}>
-          <option value="">Seleccione un fundo</option>
-        </select>
-        <input id="responsable_consumo" name="responsable" placeholder="RESPONSABLE (OBLIGATORIO MAYÚSCULAS)" required style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase(); actualizarEstadoLoteResponsable();" {disabled}>
-        <input type="number" name="cantidad" min="1" value="1" {disabled}>
-        <input type="number" step="0.01" name="precio_unitario" value="6.50" {disabled}>
-        <input id="grupo_consumo" name="observacion" placeholder="REGISTRAR TU GRUPO (OBLIGATORIO - DIGITAR)" required autocomplete="off" oninput="this.value=this.value.toUpperCase()" {disabled}>
+        <input type="hidden" name="tipo" value="Almuerzo">
+        <input type="hidden" name="cantidad" value="1">
+        <input type="hidden" name="precio_unitario" value="6.50">
         <label class="label-lote-final"><input type="checkbox" id="modo_lote" name="modo_lote" value="1" checked onchange="toggleLote()"> Registro masivo / lote</label>
         {('<label style="font-weight:900"><input type="checkbox" name="adicional" value="1"> Consumo adicional</label>' if session.get('role')=='admin' else '')}
         <div id="lote_panel" class="lote-dios-panel">
