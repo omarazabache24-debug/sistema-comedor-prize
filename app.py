@@ -3038,6 +3038,140 @@ body.sidebar-collapsed .content{width:100%!important;max-width:none!important}
   .label-lote-final{height:66px!important;min-height:66px!important;font-size:16px!important;}
 }
 
+
+/* =========================================================
+   CORRECCIÓN FINAL CELULAR 22/05 - ORDEN SOLICITADO
+   Fecha > Responsable > Fundo > Grupo > Comedor > DNI
+   Botones en 2 columnas, sin superposición. Cantidad/precio ocultos.
+   ========================================================= */
+@media(max-width:780px){
+  html,body{overflow-x:hidden!important;background:#15191d!important;}
+  .app-shell{padding-top:106px!important;}
+  .content{padding:6px 16px 76px!important;background:#15191d!important;}
+  .card:has(#form_consumo){
+    padding:10px 12px 14px!important;
+    margin:0!important;
+    border-radius:0!important;
+    background:#15191d!important;
+    border:1px solid rgba(255,255,255,.10)!important;
+    box-shadow:none!important;
+  }
+  .card:has(#form_consumo) h3,
+  #contador_lecturas_box,
+  #indicador_masivo_principal{display:none!important;}
+
+  #form_consumo.form-grid{
+    display:grid!important;
+    grid-template-columns:1fr 1fr!important;
+    gap:8px 12px!important;
+    align-items:stretch!important;
+    width:100%!important;
+  }
+  #form_consumo input,
+  #form_consumo select,
+  #form_consumo textarea,
+  #form_consumo button,
+  #form_consumo .btn,
+  #form_consumo label{
+    box-sizing:border-box!important;
+    width:100%!important;
+    max-width:100%!important;
+    margin:0!important;
+    position:static!important;
+  }
+  #form_consumo input,
+  #form_consumo select,
+  #form_consumo textarea{
+    height:46px!important;
+    min-height:46px!important;
+    border-radius:14px!important;
+    padding:0 13px!important;
+    font-size:15px!important;
+    line-height:1.15!important;
+    background:#fff!important;
+    color:#111827!important;
+    -webkit-text-fill-color:#111827!important;
+    border:1px solid #dbe4ee!important;
+    box-shadow:0 3px 10px rgba(0,0,0,.16)!important;
+  }
+  #form_consumo input::placeholder,
+  #form_consumo textarea::placeholder{
+    font-size:13px!important;
+    color:#64748b!important;
+    opacity:1!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  #form_consumo button,
+  #form_consumo .btn{
+    height:46px!important;
+    min-height:46px!important;
+    border-radius:14px!important;
+    padding:0 10px!important;
+    font-size:15px!important;
+    font-weight:950!important;
+    line-height:1.05!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    text-align:center!important;
+    text-decoration:none!important;
+  }
+
+  /* Orden exacto solicitado */
+  #form_consumo input[name="fecha"]{grid-column:1/2!important;grid-row:1!important;}
+  #responsable_consumo{grid-column:1/-1!important;grid-row:2!important;}
+  #fundo_select{grid-column:1/2!important;grid-row:3!important;}
+  #grupo_consumo{grid-column:2/3!important;grid-row:3!important;}
+  #comedor_select{grid-column:1/-1!important;grid-row:4!important;}
+  #dni_consumo{grid-column:1/-1!important;grid-row:5!important;}
+  #nombre_trabajador{grid-column:1/-1!important;grid-row:6!important;background:#fff!important;color:#475569!important;font-weight:950!important;}
+  #form_consumo button.btn-blue:first-of-type{grid-column:1/2!important;grid-row:7!important;}
+  #btn_qr{grid-column:2/3!important;grid-row:7!important;}
+
+  /* Eliminar visualmente campos solicitados */
+  #tipo_consumo,
+  #cantidad_consumo,
+  #precio_consumo,
+  #form_consumo input[name="cantidad"],
+  #form_consumo input[name="precio_unitario"]{display:none!important;}
+
+  #info_trabajador_consumo{grid-column:1/-1!important;grid-row:8!important;}
+  #qr-reader{grid-column:1/-1!important;grid-row:9!important;}
+  .label-lote-final{
+    grid-column:1/-1!important;
+    grid-row:10!important;
+    height:50px!important;
+    min-height:50px!important;
+    border-radius:14px!important;
+    padding:0 14px!important;
+    font-size:15px!important;
+    font-weight:950!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:10px!important;
+    background:#f0fdf4!important;
+    color:#064e3b!important;
+    border:2px solid #22c55e!important;
+    box-shadow:0 3px 10px rgba(0,0,0,.16)!important;
+  }
+  .label-lote-final input{width:28px!important;height:28px!important;min-height:28px!important;padding:0!important;box-shadow:none!important;}
+  #btn_submit_consumo{grid-column:1/-1!important;grid-row:11!important;height:50px!important;min-height:50px!important;border-radius:14px!important;font-size:16px!important;background:#16a34a!important;color:#fff!important;}
+  #form_consumo>a.btn{grid-column:1/-1!important;grid-row:12!important;}
+  #lote_panel,.lote-dios-panel,#dni_lote,#lote_detalle,#lote_checked{display:none!important;}
+  #form_consumo .muted.small{grid-column:1/-1!important;font-size:10px!important;line-height:1.2!important;margin-top:2px!important;}
+}
+@media(max-width:390px){
+  .content{padding-left:12px!important;padding-right:12px!important;}
+  #form_consumo.form-grid{gap:7px 10px!important;}
+  #form_consumo input,#form_consumo select,#form_consumo textarea,#form_consumo button,#form_consumo .btn{height:44px!important;min-height:44px!important;border-radius:13px!important;font-size:14px!important;padding-left:11px!important;padding-right:11px!important;}
+  #form_consumo input::placeholder{font-size:12px!important;}
+  .label-lote-final{height:48px!important;min-height:48px!important;font-size:14px!important;}
+  #btn_submit_consumo{height:48px!important;min-height:48px!important;font-size:15px!important;}
+}
+
 </style>
 <script src="https://unpkg.com/html5-qrcode.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js" crossorigin="anonymous"></script>
@@ -4027,14 +4161,14 @@ def consumos():
       </div>
       <form method="post" class="form-grid" id="form_consumo" onsubmit="return validarAntesEnviar(event)">
         <input type="date" name="fecha" value="{fecha}" onchange="window.location='{url_for('consumos')}?fecha=' + this.value" title="Elige una fecha para consultar. Solo hoy permite registrar." max="{hoy_iso()}">
-        <input id="responsable_consumo" name="responsable" placeholder="RESPONSABLE" required style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase(); actualizarEstadoLoteResponsable();" {disabled}>
+        <input id="responsable_consumo" name="responsable" placeholder="RESPONSABLE (OBLIGATORIO MAYÚSCULAS)" required style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase(); actualizarEstadoLoteResponsable();" {disabled}>
         <select id="fundo_select" name="fundo" {disabled}>
           {''.join([f'<option value="{f}">{f}</option>' for f in opciones_fundo()])}
         </select>
-        <input id="grupo_consumo" name="observacion" placeholder="GRUPO OBLIGATORIO" required autocomplete="off" oninput="this.value=this.value.toUpperCase()" {disabled}>
+        <input id="grupo_consumo" name="observacion" placeholder="REGISTRAR TU GRUPO (OBLIGATORIO)" required autocomplete="off" oninput="this.value=this.value.toUpperCase()" {disabled}>
         <input id="comedor_select" name="comedor" placeholder="COMEDOR" value="Comedor 01" required autocomplete="off" oninput="this.value=this.value.toUpperCase()" {disabled}>
-        <input id="dni_consumo" name="dni" placeholder="DNI / QR" required autofocus inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" enterkeyhint="next" oninput="dniInputHandler()" onkeyup="dniInputHandler()" onchange="dniInputHandler()" {disabled}>
-        <input id="nombre_trabajador" class="worker-name-field" placeholder="NOMBRE AUTOMÁTICO" readonly title="Nombre completo del trabajador" {disabled}>
+        <input id="dni_consumo" name="dni" placeholder="Digite DNI o escanee QR/barras" required autofocus inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" enterkeyhint="next" oninput="dniInputHandler()" onkeyup="dniInputHandler()" onchange="dniInputHandler()" {disabled}>
+        <input id="nombre_trabajador" class="worker-name-field" placeholder="Nombre aparecerá automáticamente al digitar DNI" readonly title="Nombre completo del trabajador" {disabled}>
         <button type="button" class="btn-blue" onclick="buscarTrabajadorConsumo(true)" {disabled}>🔎 Buscar trabajador</button>
         <button type="button" id="btn_qr" class="btn-blue" onclick="abrirScannerQR()" {disabled}>📷 Cámara QR / Barras</button>
         <div id="info_trabajador_consumo" style="display:none;grid-column:1/-1;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:14px;padding:12px;font-weight:900;color:#14532d"></div>
