@@ -2996,42 +2996,46 @@ body.sidebar-collapsed .content{width:100%!important;max-width:none!important}
 }
 
 
-/* ===== CORRECCIÓN URGENTE 22/05: CAMPOS MÓVIL SIN MONTARSE ===== */
+/* ===== FIX DEFINITIVO 22/05: CELULAR CONSUMOS ORDEN EXACTO SIN SUPERPOSICIÓN ===== */
 @media(max-width:780px){
-  .card:has(#form_consumo){overflow:visible!important;}
-  #form_consumo.form-grid{
-    display:grid!important;
-    grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr)!important;
-    column-gap:8px!important;
-    row-gap:8px!important;
-    align-items:stretch!important;
-    width:100%!important;
-    overflow:visible!important;
-  }
-  #form_consumo > *{min-width:0!important;max-width:100%!important;box-sizing:border-box!important;}
-  #form_consumo input,#form_consumo select,#form_consumo textarea,#form_consumo button,#form_consumo .btn{
-    width:100%!important;max-width:100%!important;min-width:0!important;height:40px!important;min-height:40px!important;
-    border-radius:12px!important;padding:7px 10px!important;font-size:13px!important;line-height:1.1!important;
-    overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
-  }
-  #form_consumo input::placeholder,#form_consumo textarea::placeholder{font-size:12px!important;white-space:nowrap!important;text-overflow:ellipsis!important;overflow:hidden!important;}
+  html,body{overflow-x:hidden!important;}
+  .app-shell{padding-top:106px!important;}
+  .content{padding:8px 16px 80px!important;background:#15191d!important;}
+  .card:has(#form_consumo){padding:10px 14px 16px!important;margin:0!important;border-radius:0!important;background:#15191d!important;border:1px solid rgba(255,255,255,.10)!important;box-shadow:none!important;}
+  #contador_lecturas_box,#indicador_masivo_principal{display:none!important;}
+  #form_consumo.form-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:10px 12px!important;align-items:stretch!important;width:100%!important;}
+  #form_consumo input,#form_consumo select,#form_consumo textarea,#form_consumo button,#form_consumo .btn,#form_consumo label{box-sizing:border-box!important;width:100%!important;max-width:100%!important;margin:0!important;position:static!important;}
+  #form_consumo input,#form_consumo select,#form_consumo textarea{height:58px!important;min-height:58px!important;border-radius:20px!important;padding:0 18px!important;font-size:18px!important;line-height:1.2!important;background:#fff!important;color:#111827!important;border:1px solid #dbe4ee!important;box-shadow:0 4px 14px rgba(0,0,0,.18)!important;-webkit-text-fill-color:#111827!important;}
+  #form_consumo input::placeholder,#form_consumo textarea::placeholder{font-size:16px!important;color:#64748b!important;opacity:1!important;white-space:nowrap!important;text-overflow:ellipsis!important;}
+  #form_consumo button,#form_consumo .btn{height:58px!important;min-height:58px!important;border-radius:20px!important;font-size:18px!important;font-weight:950!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;text-decoration:none!important;line-height:1.15!important;}
   #form_consumo input[name="fecha"]{grid-column:1/2!important;grid-row:1!important;}
-  #responsable_consumo{grid-column:2/3!important;grid-row:1!important;}
-  #fundo_select{grid-column:1/2!important;grid-row:2!important;}
-  #grupo_consumo{grid-column:2/3!important;grid-row:2!important;}
-  #comedor_select{grid-column:1/2!important;grid-row:3!important;}
-  #dni_consumo{grid-column:2/3!important;grid-row:3!important;}
-  #nombre_trabajador{grid-column:1/-1!important;grid-row:4!important;}
-  #form_consumo button.btn-blue:first-of-type{grid-column:1/2!important;grid-row:5!important;}
-  #btn_qr{grid-column:2/3!important;grid-row:5!important;}
-  #info_trabajador_consumo,#qr-reader{grid-column:1/-1!important;}
-  .label-lote-final{grid-column:1/-1!important;width:100%!important;height:40px!important;min-height:40px!important;display:flex!important;align-items:center!important;gap:8px!important;}
-  #btn_submit_consumo{grid-column:1/-1!important;width:100%!important;height:42px!important;min-height:42px!important;}
+  #dni_consumo{grid-column:1/-1!important;grid-row:2!important;}
+  #nombre_trabajador{grid-column:1/-1!important;grid-row:3!important;font-weight:950!important;background:#fff!important;color:#475569!important;}
+  #form_consumo button.btn-blue:first-of-type{grid-column:1/-1!important;grid-row:4!important;}
+  #btn_qr{grid-column:1/-1!important;grid-row:5!important;}
+  #fundo_select{grid-column:1/2!important;grid-row:6!important;}
+  #tipo_consumo{grid-column:2/3!important;grid-row:6!important;}
+  #comedor_select{grid-column:1/-1!important;grid-row:7!important;}
+  #responsable_consumo{grid-column:1/-1!important;grid-row:8!important;}
+  #cantidad_consumo{grid-column:1/2!important;grid-row:9!important;}
+  #precio_consumo{grid-column:2/3!important;grid-row:9!important;}
+  #grupo_consumo{grid-column:1/-1!important;grid-row:10!important;}
+  .label-lote-final{grid-column:1/-1!important;grid-row:11!important;height:72px!important;min-height:72px!important;border-radius:20px!important;padding:0 18px!important;font-size:18px!important;font-weight:950!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:14px!important;background:#f0fdf4!important;color:#064e3b!important;border:3px solid #22c55e!important;box-shadow:0 4px 14px rgba(0,0,0,.18)!important;}
+  .label-lote-final input{width:34px!important;height:34px!important;min-height:34px!important;border-radius:8px!important;box-shadow:none!important;padding:0!important;}
+  #btn_submit_consumo{grid-column:1/-1!important;grid-row:12!important;height:64px!important;min-height:64px!important;border-radius:20px!important;font-size:18px!important;background:#16a34a!important;color:white!important;}
+  #form_consumo>a.btn{grid-column:1/-1!important;grid-row:13!important;}
+  #info_trabajador_consumo{grid-column:1/-1!important;grid-row:14!important;}
+  #qr-reader{grid-column:1/-1!important;grid-row:15!important;}
+  #lote_panel,.lote-dios-panel{display:none!important;}
+  #dni_lote,#lote_detalle,#lote_checked{display:none!important;}
   #form_consumo .muted.small{grid-column:1/-1!important;}
 }
-@media(max-width:360px){
-  #form_consumo.form-grid{grid-template-columns:1fr!important;gap:7px!important;}
-  #form_consumo input[name="fecha"],#responsable_consumo,#fundo_select,#grupo_consumo,#comedor_select,#dni_consumo,#nombre_trabajador,#form_consumo button.btn-blue:first-of-type,#btn_qr{grid-column:1/-1!important;grid-row:auto!important;}
+@media(max-width:390px){
+  .content{padding-left:12px!important;padding-right:12px!important;}
+  #form_consumo.form-grid{gap:9px 10px!important;}
+  #form_consumo input,#form_consumo select,#form_consumo textarea,#form_consumo button,#form_consumo .btn{height:54px!important;min-height:54px!important;border-radius:18px!important;font-size:16px!important;padding-left:14px!important;padding-right:14px!important;}
+  #form_consumo input::placeholder{font-size:14px!important;}
+  .label-lote-final{height:66px!important;min-height:66px!important;font-size:16px!important;}
 }
 
 </style>
@@ -4035,9 +4039,13 @@ def consumos():
         <button type="button" id="btn_qr" class="btn-blue" onclick="abrirScannerQR()" {disabled}>📷 Cámara QR / Barras</button>
         <div id="info_trabajador_consumo" style="display:none;grid-column:1/-1;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:14px;padding:12px;font-weight:900;color:#14532d"></div>
         <div id="qr-reader" style="display:none;width:420px;max-width:100%;margin:10px 0;grid-column:1/-1"></div>
-        <input type="hidden" name="tipo" value="Almuerzo">
-        <input type="hidden" name="cantidad" value="1">
-        <input type="hidden" name="precio_unitario" value="6.50">
+        <select id="tipo_consumo" name="tipo" {disabled}>
+          <option value="Almuerzo" selected>Almuerzo</option>
+          <option value="Cena">Cena</option>
+          <option value="Desayuno">Desayuno</option>
+        </select>
+        <input id="cantidad_consumo" name="cantidad" type="number" min="1" step="1" value="1" placeholder="CANTIDAD" {disabled}>
+        <input id="precio_consumo" name="precio_unitario" type="number" min="0" step="0.01" value="6.50" placeholder="PRECIO" {disabled}>
         <label class="label-lote-final"><input type="checkbox" id="modo_lote" name="modo_lote" value="1" checked onchange="toggleLote()"> Registro masivo / lote</label>
         {('<label style="font-weight:900"><input type="checkbox" name="adicional" value="1"> Consumo adicional</label>' if session.get('role')=='admin' else '')}
         <div id="lote_panel" class="lote-dios-panel">
