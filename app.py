@@ -2994,6 +2994,46 @@ body.sidebar-collapsed .content{width:100%!important;max-width:none!important}
   #form_consumo input::placeholder{font-size:11.5px!important;}
   #form_consumo button{font-size:12px!important;padding-left:6px!important;padding-right:6px!important;}
 }
+
+
+/* ===== CORRECCIÓN URGENTE 22/05: CAMPOS MÓVIL SIN MONTARSE ===== */
+@media(max-width:780px){
+  .card:has(#form_consumo){overflow:visible!important;}
+  #form_consumo.form-grid{
+    display:grid!important;
+    grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr)!important;
+    column-gap:8px!important;
+    row-gap:8px!important;
+    align-items:stretch!important;
+    width:100%!important;
+    overflow:visible!important;
+  }
+  #form_consumo > *{min-width:0!important;max-width:100%!important;box-sizing:border-box!important;}
+  #form_consumo input,#form_consumo select,#form_consumo textarea,#form_consumo button,#form_consumo .btn{
+    width:100%!important;max-width:100%!important;min-width:0!important;height:40px!important;min-height:40px!important;
+    border-radius:12px!important;padding:7px 10px!important;font-size:13px!important;line-height:1.1!important;
+    overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+  }
+  #form_consumo input::placeholder,#form_consumo textarea::placeholder{font-size:12px!important;white-space:nowrap!important;text-overflow:ellipsis!important;overflow:hidden!important;}
+  #form_consumo input[name="fecha"]{grid-column:1/2!important;grid-row:1!important;}
+  #responsable_consumo{grid-column:2/3!important;grid-row:1!important;}
+  #fundo_select{grid-column:1/2!important;grid-row:2!important;}
+  #grupo_consumo{grid-column:2/3!important;grid-row:2!important;}
+  #comedor_select{grid-column:1/2!important;grid-row:3!important;}
+  #dni_consumo{grid-column:2/3!important;grid-row:3!important;}
+  #nombre_trabajador{grid-column:1/-1!important;grid-row:4!important;}
+  #form_consumo button.btn-blue:first-of-type{grid-column:1/2!important;grid-row:5!important;}
+  #btn_qr{grid-column:2/3!important;grid-row:5!important;}
+  #info_trabajador_consumo,#qr-reader{grid-column:1/-1!important;}
+  .label-lote-final{grid-column:1/-1!important;width:100%!important;height:40px!important;min-height:40px!important;display:flex!important;align-items:center!important;gap:8px!important;}
+  #btn_submit_consumo{grid-column:1/-1!important;width:100%!important;height:42px!important;min-height:42px!important;}
+  #form_consumo .muted.small{grid-column:1/-1!important;}
+}
+@media(max-width:360px){
+  #form_consumo.form-grid{grid-template-columns:1fr!important;gap:7px!important;}
+  #form_consumo input[name="fecha"],#responsable_consumo,#fundo_select,#grupo_consumo,#comedor_select,#dni_consumo,#nombre_trabajador,#form_consumo button.btn-blue:first-of-type,#btn_qr{grid-column:1/-1!important;grid-row:auto!important;}
+}
+
 </style>
 <script src="https://unpkg.com/html5-qrcode.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js" crossorigin="anonymous"></script>
